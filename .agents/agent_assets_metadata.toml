@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Ard7LzB-PWS-d9OLB5hXl"
+uri = "file://khadematy-local.zip"
+type = "unspecified"
+title = "Khadematy Local Prototype"
+description = "نسخة محلية قابلة للتنزيل من النموذج التفاعلي، تشمل كود React وملفات التشغيل وتعليمات الإكمال محلياً."
+logical_id = "8e293a00-95f3-41d9-b6c8-452053428b23"
+content_hash = "sha256:95233c70f82fff269ace37bfe72f49cea5dd57e672165e76a70c318644538fb8"
+size = 198863
+mtime_ms = 1787433790532
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:2d072db6-069e-4e53-a98a-815df6f5ed90/8e293a00-95f3-41d9-b6c8-452053428b23/0d6b49a6-d841-46de-827e-659cb7a6966a"
+storage_version_token = "1787433798311638"
+content_type = "application/octet-stream"

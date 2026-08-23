@@ -58,7 +58,8 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   if (error instanceof ZodError || details.type === "entity.parse.failed") { res.status(400).json({ message: "Invalid request" }); return; }
   if (details.code === "23505") { res.status(409).json({ message: "A record with these values already exists" }); return; }
   if (details.code === "23503") { res.status(400).json({ message: "A related record is invalid" }); return; }
-  if (message.includes("DATABASE_URL") || message.includes("Media storage is not configured")) { res.status(503).json({ message: "Service configuration is unavailable" }); return; }
+  if (message.includes("DATABASE_URL") || message.includes("DATABASE_SCHEMA_MIGRATION_REQUIRED")) { res.status(503).json({ message: "Database is not ready; run the database migration command before serving traffic." }); return; }
+  if (message.includes("Media storage is not configured")) { res.status(503).json({ message: "Media storage is not configured" }); return; }
   res.status(500).json({ message: "Request could not be completed" });
 });
 

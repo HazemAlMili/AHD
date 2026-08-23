@@ -6,13 +6,17 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "test": "tsx --test ./src/*.test.ts",
+    "db:migrate": "tsx ./src/migrations.ts migrate",
+    "db:status": "tsx ./src/migrations.ts status",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@workspace/api-zod": "workspace:*"
+    "@workspace/api-zod": "workspace:*",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "^8.20.0",
     "axe-core": "^4.13.0",
     "tsx": "catalog:"
   }

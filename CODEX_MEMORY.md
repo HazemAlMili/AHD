@@ -75,6 +75,8 @@ S3-compatible object-storage abstraction for worker media
 
 The TRD contains an aspirational Next.js/NestJS/Prisma stack, but the verified implementation is Vite/React + Express + Drizzle/`pg`. Do not perform a framework/ORM rewrite solely to match that older target description. Migrate only through an explicit approved decision with visual and behavioral parity.
 
+Database lifecycle is now explicit: version-controlled SQL lives under `db/migrations/`, and `pnpm db:migrate` / `pnpm db:status` run through the existing `pg` architecture. The migration runner uses transactional execution, a PostgreSQL advisory lock, checksums, repeatable application, and safe adoption of an existing compatible schema. `ensureSchema()` remains available for local/test bootstrap but is a no-op in production; production schema changes must happen through the migration command before traffic.
+
 Architect for scale, deploy for current reality:
 
 - PostgreSQL is the durable business source of truth.
@@ -323,7 +325,7 @@ These corrections are confirmed in the current code and must not regress:
 
 ## 21. Current QA Status
 
-Latest independent QA result: **PASS WITH NON-BLOCKING ITEMS**.
+Latest independent QA result: **PASS WITH NON-BLOCKING ITEMS**. Repository hardening now has a clean dependency audit, a repository-native lint command, explicit database migration/status commands, and liveness/readiness endpoints; configured staging remains pending.
 
 Verified QA evidence:
 
@@ -335,16 +337,17 @@ Verified QA evidence:
 - TypeScript build/typecheck passed.
 - API bundle build passed.
 - Vite production build passed.
-- Production dependency audit: no known vulnerabilities.
+- Production dependency audit: no known vulnerabilities after targeted patched-version overrides for the audited dependency chains.
+- Repository lint passes through `pnpm lint` with defect-focused TypeScript/React/Node rules; the preserved mockup artifact is intentionally excluded from maintained-product lint coverage.
 - Visual/RTL checks passed at 390px, 768px, and 1440px.
 
 ## 22. Known Non-Blocking Items
 
-- No repository lint script is configured; the workspace `pnpm run lint` path is not a usable check and is additionally affected by the preinstall no-TTY module-purge guard.
 - Automated axe/CDP E2E coverage is incomplete; the current evidence includes manual browser checks, focused unit tests, and live API integration checks.
 - Real binary S3 upload has not been exercised with configured staging object storage.
 - No real outbound WhatsApp message was sent during QA; external transmission requires a controlled destination and action-time approval.
 - Vite reports an existing tooltip source-map warning during production build; the build still succeeds.
+- A staging database, object storage, controlled WhatsApp destination, and production-like browser audit are still required for configured staging verification.
 - Documentation reconciliation remains before production-readiness sign-off.
 
 ## 23. Agent Working Protocol
@@ -406,7 +409,7 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 26. Current Next Action
 
-**NEXT ACTION:** Complete canonical documentation reconciliation so all AHD source-of-truth documents describe the verified simple CRUD + catalogue + matching + WhatsApp MVP, identify the current Express/Drizzle/Vite implementation accurately, and remove or clearly quarantine stale lead/CRM planning examples. Do not reintroduce the removed architecture while doing so.
+**NEXT ACTION:** Complete configured staging verification using the explicit database migration lifecycle, real object storage, controlled WhatsApp destination, and the repository browser audit. Do not mark staging or documentation reconciliation complete until verified evidence exists.
 
 ## 27. Memory Maintenance Rules
 

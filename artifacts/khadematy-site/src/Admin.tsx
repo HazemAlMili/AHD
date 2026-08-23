@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Archive, Check, ChevronLeft, FileText, Globe2, LogOut, MessageCircle, Pencil, Plus, Save, Settings, ShieldCheck, Tags, UsersRound, X } from "lucide-react";
+import { Archive, Check, ChevronLeft, FileText, Globe2, LogOut, Pencil, Plus, Save, Settings, ShieldCheck, Tags, UsersRound, X } from "lucide-react";
 import { adminApi, type AdminWorker, type TaxonomyItem } from "./lib/api";
 
 type Navigate = (path: string) => void;

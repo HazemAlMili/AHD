@@ -2,9 +2,14 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@11.21.0",
   "scripts": {
     "preinstall": "node ./scripts/preinstall.mjs",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "db:migrate": "pnpm --filter @workspace/scripts db:migrate",
+    "db:status": "pnpm --filter @workspace/scripts db:status",
+    "lint": "eslint .",
+    "test": "pnpm --filter @workspace/scripts test",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
@@ -13,7 +18,12 @@
     "@replit/connectors-sdk": "^0.4.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.4",
     "prettier": "^3.9.6",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.67.0"
   }
 }

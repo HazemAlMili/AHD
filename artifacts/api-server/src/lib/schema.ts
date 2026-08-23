@@ -3,7 +3,10 @@ import { requirePool } from "@workspace/db";
 let initialized = false;
 
 export async function ensureSchema(): Promise<void> {
-  if (initialized) return;
+  // Production schema changes are applied only by `pnpm db:migrate`.
+  // The repository still calls this helper for local/test compatibility, but it
+  // is a no-op in production so normal requests never mutate schema objects.
+  if (process.env.NODE_ENV === "production" || initialized) return;
   const pool = requirePool();
   await pool.query(`
     DO $$ BEGIN CREATE TYPE admin_role AS ENUM ('SUPER_ADMIN','ADMIN','OPERATIONS','CONTENT_MANAGER','ANALYST'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;

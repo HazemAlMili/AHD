@@ -51,8 +51,9 @@ The website does not need an internal CRM to complete this loop.
 - Repository hardening: **completed and pushed in `82b9b97`**.
 - Configured staging verification: **completed with external blockers** using a dedicated disposable PostgreSQL/API/frontend environment; no real staging host or production data was used.
 - Documentation reconciliation: **completed in Task 3; canonical docs now match verified implementation**.
-- Production readiness: **PASS WITH EXTERNAL BLOCKERS** for repository-controlled scope.
-- Production launch: pending only real S3 binary/public retrieval and production-like HTTPS/domain verification where required by deployment.
+- Production readiness: **AHD PRODUCTION READY — EXTERNAL DEPLOYMENT BLOCKER**.
+- Production deployment: **not executed** because no authorized hosting/domain/database/S3 target or deployment credentials were available in Task 4.
+- Production launch: pending one authorized external deployment target/configuration, including real S3 and HTTPS/domain verification.
 
 ## 5. Current Architecture
 
@@ -413,9 +414,15 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 26. Current Next Action
 
-**NEXT ACTION:** Resolve the named external infrastructure blockers—real S3 binary upload/public retrieval and production-like HTTPS/domain cookie/CORS verification where required—then proceed to Production Deployment. Do not create new repository feature work for the already-passing MVP scope.
+**NEXT ACTION:** Provide or authorize one production deployment target with its domain, PostgreSQL, S3-compatible storage, and secret-management configuration; then deploy and run the Task 4 live smoke suite. Do not create new repository feature work for the already-passing MVP scope.
 
-## 27. Memory Maintenance Rules
+## 27. Task 4 External Deployment State
+
+Task 4 baseline passed: frozen install, lint, typecheck, tests (7/7), production build, dependency audit, and GitHub Actions CI. The available disposable local PostgreSQL staging environment reported `0001_initial: APPLIED` and `/api/readyz` returned database ready; safe public-read and public-mutation-denial smoke checks passed. This is not production deployment evidence.
+
+No authorized frontend host, API host, domain/DNS/TLS topology, production database target, S3-compatible credentials, or deployment workflow was available in the current session. No deployment was attempted and no production data was touched. The exact blocker is an authorized external deployment target/configuration. Once supplied, verify S3 binary upload/public retrieval, HTTPS/CORS/Secure-cookie behavior, production migration/readiness, and the post-deploy golden slice.
+
+## 28. Memory Maintenance Rules
 
 - Keep this as the one canonical project-memory document: `CODEX_MEMORY.md`.
 - Update only when durable product scope, architecture, data model, workflow, source-of-truth, major integration, QA discovery, or project stage changes.

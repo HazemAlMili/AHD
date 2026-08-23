@@ -1,36 +1,227 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: AHD public catalogue and server-authorized admin CRUD API.
 servers:
   - url: /api
-    description: Base API path
 tags:
-  - name: health
-    description: Health operations
+  - { name: health }
+  - { name: public }
+  - { name: admin-auth }
+  - { name: admin }
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
       responses:
-        "200":
-          description: Healthy
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
+        "200": { description: Healthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+  /v1/workers:
+    get:
+      operationId: listPublicWorkers
+      tags: [public]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: nationality, in: query, schema: { type: string } }
+        - { name: skill, in: query, schema: { type: string } }
+        - { name: availability, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Published workers only, content: { application/json: { schema: { $ref: "#/components/schemas/PublicWorkerListEnvelope" } } } }
+  /v1/workers/{slug}:
+    get:
+      operationId: getPublicWorker
+      tags: [public]
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      responses:
+        "200": { description: Published worker, content: { application/json: { schema: { $ref: "#/components/schemas/PublicWorkerEnvelope" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/nationalities:
+    get:
+      operationId: listPublicNationalities
+      tags: [public]
+      responses: { "200": { description: Active nationalities } }
+  /v1/skills:
+    get:
+      operationId: listPublicSkills
+      tags: [public]
+      responses: { "200": { description: Active skills } }
+  /v1/content/{key}:
+    get:
+      operationId: getPublicContent
+      tags: [public]
+      parameters: [{ $ref: "#/components/parameters/Key" }]
+      responses: { "200": { description: Active content block }, "404": { $ref: "#/components/responses/NotFound" } }
+  /v1/public-settings:
+    get:
+      operationId: getPublicSettings
+      tags: [public]
+      responses:
+        "200": { description: Allowlisted public contact settings, content: { application/json: { schema: { $ref: "#/components/schemas/PublicSettingsEnvelope" } } } }
+  /v1/admin/auth/login:
+    post:
+      operationId: loginAdmin
+      tags: [admin-auth]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/LoginInput" } } }
+      responses: { "200": { description: Authenticated; sets HttpOnly session cookie }, "401": { $ref: "#/components/responses/Unauthorized" } }
+  /v1/admin/auth/logout:
+    post:
+      operationId: logoutAdmin
+      tags: [admin-auth]
+      responses: { "204": { description: Session removed } }
+  /v1/admin/auth/session:
+    get:
+      operationId: getAdminSession
+      tags: [admin-auth]
+      security: [{ adminSession: [] }]
+      responses: { "200": { description: Current admin }, "401": { $ref: "#/components/responses/Unauthorized" } }
+  /v1/admin/workers:
+    get:
+      operationId: listAdminWorkers
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      responses: { "200": { description: All worker publication states } }
+    post:
+      operationId: createAdminWorker
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WorkerInput" } } } }
+      responses: { "201": { description: Draft worker created }, "401": { $ref: "#/components/responses/Unauthorized" }, "403": { $ref: "#/components/responses/Forbidden" } }
+  /v1/admin/workers/{id}:
+    patch:
+      operationId: updateAdminWorker
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WorkerInput" } } } }
+      responses: { "200": { description: Worker updated }, "404": { $ref: "#/components/responses/NotFound" } }
+  /v1/admin/workers/{id}/{lifecycle}:
+    post:
+      operationId: changeWorkerLifecycle
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/Id" }
+        - { name: lifecycle, in: path, required: true, schema: { type: string, enum: [publish, unpublish, archive] } }
+      responses: { "200": { description: Lifecycle changed }, "404": { $ref: "#/components/responses/NotFound" } }
+  /v1/admin/workers/{id}/availability:
+    patch:
+      operationId: updateWorkerAvailability
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { $ref: "#/components/schemas/AvailabilityStatus" } } } } } }
+      responses: { "200": { description: Availability changed } }
+  /v1/admin/workers/{id}/media/upload:
+    post:
+      operationId: createWorkerMediaUpload
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [contentType, size], properties: { contentType: { type: string, enum: [image/jpeg, image/png, image/webp, video/mp4] }, size: { type: integer, minimum: 1 } } } } }
+      responses: { "200": { description: Five-minute S3-compatible presigned POST with size/type policy }, "413": { description: File exceeds its allowlisted limit } }
+  /v1/admin/workers/{id}/media:
+    post:
+      operationId: registerWorkerMedia
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "201": { description: Media metadata registered } }
+  /v1/admin/workers/{id}/media/{mediaId}:
+    patch:
+      operationId: updateWorkerMedia
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/MediaId" }]
+      responses: { "200": { description: Media metadata updated } }
+    delete:
+      operationId: deleteWorkerMedia
+      tags: [admin]
+      security: [{ adminSession: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/MediaId" }]
+      responses: { "204": { description: Media metadata deleted } }
+  /v1/admin/nationalities:
+    get: { operationId: listAdminNationalities, tags: [admin], security: [{ adminSession: [] }], responses: { "200": { description: All nationalities } } }
+    post: { operationId: createNationality, tags: [admin], security: [{ adminSession: [] }], responses: { "201": { description: Nationality created } } }
+  /v1/admin/nationalities/{id}:
+    patch: { operationId: updateNationality, tags: [admin], security: [{ adminSession: [] }], parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: Nationality updated } } }
+  /v1/admin/skills:
+    get: { operationId: listAdminSkills, tags: [admin], security: [{ adminSession: [] }], responses: { "200": { description: All skills } } }
+    post: { operationId: createSkill, tags: [admin], security: [{ adminSession: [] }], responses: { "201": { description: Skill created } } }
+  /v1/admin/skills/{id}:
+    patch: { operationId: updateSkill, tags: [admin], security: [{ adminSession: [] }], parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: Skill updated } } }
+  /v1/admin/content/{key}:
+    get: { operationId: getAdminContent, tags: [admin], security: [{ adminSession: [] }], parameters: [{ $ref: "#/components/parameters/Key" }], responses: { "200": { description: Content block } } }
+    patch: { operationId: updateAdminContent, tags: [admin], security: [{ adminSession: [] }], parameters: [{ $ref: "#/components/parameters/Key" }], responses: { "200": { description: Content block upserted } } }
+  /v1/admin/settings/{key}:
+    get: { operationId: getAdminSetting, tags: [admin], security: [{ adminSession: [] }], parameters: [{ $ref: "#/components/parameters/Key" }], responses: { "200": { description: Setting } } }
+    patch: { operationId: updateAdminSetting, tags: [admin], security: [{ adminSession: [] }], parameters: [{ $ref: "#/components/parameters/Key" }], responses: { "200": { description: Setting upserted } } }
 components:
+  securitySchemes:
+    adminSession: { type: apiKey, in: cookie, name: ahd_admin_session }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    MediaId: { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
+    Slug: { name: slug, in: path, required: true, schema: { type: string } }
+    Key: { name: key, in: path, required: true, schema: { type: string } }
+  responses:
+    Unauthorized: { description: Authentication required }
+    Forbidden: { description: Role is not authorized }
+    NotFound: { description: Resource not found }
   schemas:
     HealthStatus:
       type: object
+      required: [status]
+      properties: { status: { type: string } }
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties: { email: { type: string, format: email }, password: { type: string, maxLength: 200 } }
+    AvailabilityStatus:
+      type: string
+      enum: [AVAILABLE, ON_HOLD, RESERVED, TRANSFER_IN_PROGRESS, TRANSFERRED, UNAVAILABLE]
+    WorkerInput:
+      type: object
+      additionalProperties: false
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        publicCode: { type: string, pattern: '^AHD-[0-9]{4,}$' }
+        displayName: { type: string, maxLength: 120 }
+        nationalityId: { type: string, format: uuid }
+        publicSummaryAr: { type: [string, "null"], maxLength: 3000 }
+        publicSummaryEn: { type: [string, "null"], maxLength: 3000 }
+        skillIds: { type: array, maxItems: 50, items: { type: string, format: uuid } }
+        isFeatured: { type: boolean }
+        sortOrder: { type: integer, minimum: 0 }
+    PublicWorker:
+      type: object
+      description: Explicit public projection; internal notes and admin metadata are excluded.
+      required: [publicCode, displayName, slug, nationality, skills, media, availabilityStatus]
+      properties:
+        publicCode: { type: string }
+        displayName: { type: string }
+        slug: { type: string }
+        nationality: { type: object }
+        skills: { type: array, items: { type: string } }
+        media: { type: array, items: { type: object } }
+        availabilityStatus: { $ref: "#/components/schemas/AvailabilityStatus" }
+    PublicWorkerEnvelope:
+      type: object
+      required: [data]
+      properties: { data: { $ref: "#/components/schemas/PublicWorker" } }
+    PublicWorkerListEnvelope:
+      type: object
+      required: [data]
+      properties: { data: { type: array, items: { $ref: "#/components/schemas/PublicWorker" } } }
+    PublicSettingsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties: { whatsappNumber: { type: string }, phoneNumber: { type: string } }

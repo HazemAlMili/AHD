@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATIONS
+  CONTENT_MANAGER
+  ANALYST
+}
+
+enum WorkerAvailabilityStatus {
+  AVAILABLE
+  ON_HOLD
+  RESERVED
+  TRANSFER_IN_PROGRESS
+  TRANSFERRED
+  UNAVAILABLE
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaVisibility {
+  PUBLIC
+  INTERNAL
+  SENSITIVE
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  displayName  String
+  role         AdminRole
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions      AdminSession[]
+  auditLogs     AuditLog[]
+}
+
+model AdminSession {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  adminUserId String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+}
+
+model Nationality {
+  id            String   @id @default(cuid())
+  nameEn        String
+  nameAr        String
+  slug          String   @unique
+  descriptionEn String?
+  descriptionAr String?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workers       Worker[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Skill {
+  id        String   @id @default(cuid())
+  nameEn    String
+  nameAr    String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workers   WorkerSkill[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Worker {
+  id                     String                   @id @default(cuid())
+  publicCode             String                   @unique
+  displayName            String
+  slug                   String                   @unique
+  nationalityId          String
+  age                    Int?
+  religion               String?
+  currentCity            String?
+  expectedSalary         Decimal?                 @db.Decimal(12, 2)
+  transferAmount         Decimal?                 @db.Decimal(12, 2)
+  yearsExperience        Int?
+  saudiExperienceYears   Int?
+  publicSummaryEn        String?
+  publicSummaryAr        String?
+  languages              String[]                 @default([])
+  internalNotes          String?
+  availabilityStatus     WorkerAvailabilityStatus @default(AVAILABLE)
+  publicationStatus      PublicationStatus        @default(DRAFT)
+  isFeatured             Boolean                  @default(false)
+  sortOrder              Int                      @default(0)
+  publishedAt            DateTime?
+  archivedAt             DateTime?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  nationality            Nationality              @relation(fields: [nationalityId], references: [id])
+  skills                 WorkerSkill[]
+  media                  WorkerMedia[]
+
+  @@index([publicationStatus, availabilityStatus])
+  @@index([nationalityId, publicationStatus, availabilityStatus])
+  @@index([isFeatured, publicationStatus, availabilityStatus])
+  @@index([createdAt])
+}
+
+model WorkerSkill {
+  workerId String
+  skillId  String
+  createdAt DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  skill  Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([workerId, skillId])
+  @@index([skillId, workerId])
+}
+
+model WorkerMedia {
+  id         String          @id @default(cuid())
+  workerId   String
+  url        String
+  storageKey String?
+  mimeType   String?
+  sizeBytes  Int?
+  visibility MediaVisibility @default(PUBLIC)
+  isPrimary  Boolean         @default(false)
+  altTextEn  String?
+  altTextAr  String?
+  createdAt  DateTime        @default(now())
+
+  worker     Worker          @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, visibility])
+}
+
+model AuditLog {
+  id             String    @id @default(cuid())
+  actorAdminId   String?
+  action         String
+  entityType     String
+  entityId       String?
+  beforeJson     Json?
+  afterJson      Json?
+  requestId      String?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime  @default(now())
+
+  actorAdmin     AdminUser? @relation(fields: [actorAdminId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorAdminId, createdAt])
+}
+
+model ContentBlock {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  contentEn   Json?
+  contentAr   Json?
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "AHD Website"
+description = "Arabic RTL website for AHD with a transfer matching funnel, DB-backed worker catalogue, admin CRUD, profiles, and WhatsApp handoff flows."
+version = "1.0.0"
+id = "artifacts/khadematy-site"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18142
+
+[services.development]
+run = "pnpm --filter @workspace/ahd-site run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ahd-site", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/khadematy-site/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18142"
+BASE_PATH = "/"

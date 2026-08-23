@@ -1,45 +1,40 @@
 # AHD Architecture
 
-**Version:** 3.0 — Final Verified Architecture
-
-## System Boundary
+## Target Topology
 
 ```text
-Public React/Vite App
-  ├─ reads approved catalogue/content/settings
-  ├─ filters and renders public DTOs
-  └─ validates short form → builds WhatsApp URL
-          │
-          ▼
-Express 5 API
-  ├─ public read routes
-  ├─ protected admin routes
-  ├─ health/readiness
-  └─ auth, validation, repositories, audit
-          │
-          ▼
-PostgreSQL
-
-Admin React/Vite Interface
-  └─ authenticated CRUD, publication, availability, settings/content
-
-Worker Media → S3-Compatible Object Storage
-
-WhatsApp → external operational conversation
+Browser
+  │
+  ├── https://domain/       → static React/Vite assets
+  └── https://domain/api/*  → Laravel public/index.php
+                                  │
+                                  ▼
+                              MySQL
+                                  │
+                                  ▼
+                    local/public or S3-compatible media disk
 ```
 
-## Runtime Responsibilities
+The frontend remains the existing React/Vite application. Laravel owns API behavior, authentication, authorization, validation, Eloquent persistence, transactions, migrations, media metadata, content, settings, and audit records. MySQL is the production data authority.
 
-The public React/Vite application owns presentation, filters, temporary request-form state, shared Zod readiness checks, and safe WhatsApp URL construction. The admin UI owns operational controls but never bypasses server-side permission checks. The Express API owns authentication, authorization, CRUD, publication and availability rules, public DTO projection, settings, audit logging, health, and readiness. PostgreSQL is the business source of truth. S3-compatible storage is used for approved worker media when configured.
+## Boundaries
 
-## Database Lifecycle
+Public Laravel routes are read-only and expose explicit DTOs. Admin routes require a server-validated opaque session cookie and role middleware. The public and admin surfaces use the same current React UI but different API boundaries. The browser never chooses the trusted WhatsApp destination.
 
-Versioned SQL migrations in `db/migrations` are applied before production traffic with `pnpm db:migrate` and inspected with `pnpm db:status`. The migration runner is transactional, checksum-protected, advisory-lock-protected, idempotent, and able to adopt a compatible existing schema. Request-time schema creation is not the production deployment contract.
+Customer forms are intentionally not backend resources. The frontend keeps form state temporarily, validates it with shared Zod helpers, builds a message, tracks only approved non-PII events, and opens a trusted WhatsApp URL. There is no lead, customer, matching-request, CRM, queue, or booking subsystem.
 
-## Trust Boundaries
+## Data Flow
 
-Public routes expose only explicit approved DTOs. Admin routes require an HTTP-only session and role authorization. Public customer forms do not write a lead or matching-request record. They validate locally, emit non-PII behavioral events, and open a configured WhatsApp destination. Worker media operations verify worker ownership and enforce type/size/HTTPS policy.
+Admin worker/taxonomy/content/settings changes are validated by Laravel, applied through Eloquent and MySQL transactions, and audited. A worker's skill pivot is updated within the same transaction as worker create/update. Publication and availability determine public visibility/requestability. Public responses are projections that exclude internal notes, audit metadata, private media, and admin-only fields.
 
-## Scale and Non-Goals
+Media uses Laravel Filesystem. Conventional shared hosting may use a persistent local/public disk with a protected storage link; an approved S3-compatible disk can be selected through configuration without changing domain behavior. Uploads validate ownership, MIME type, size, and safe storage paths.
 
-The web/API tier is stateless and can be deployed behind a suitable reverse proxy or load balancer. PostgreSQL filtering, indexes, connection-aware deployment, and object storage/CDN are the current scaling path. Redis, BullMQ, queues, CRM, dedicated search, microservices, Kafka, Kubernetes, and framework migration are not mandatory architecture components for this MVP.
+## Shared-Hosting Requirements
+
+The document root must map to the intended Laravel `public` directory or an explicitly integrated public structure. `.env`, `vendor`, storage private files, database configuration, and source must not be web-accessible. Production requires PHP 8.2+, Composer-installed dependencies, `pdo_mysql`, `mbstring`, `xml`, `curl`, and `zip`, standard HTTPS, writable cache/log/storage directories, `APP_DEBUG=false`, secure cookies, and a real `APP_KEY`.
+
+Production traffic must not depend on Node, Docker, Redis, BullMQ, queue workers, WebSockets, Kafka, Kubernetes, or microservices. Frontend assets are built once and served statically. Laravel migrations run through `php artisan migrate --force` before traffic.
+
+## Historical Reference
+
+The Express/PostgreSQL application was the verified behavioral reference used to implement this pivot. It is retained for comparison and rollback history only. The Laravel/MySQL package is the current architecture; old PostgreSQL migrations and Express routes must not be treated as production authority.

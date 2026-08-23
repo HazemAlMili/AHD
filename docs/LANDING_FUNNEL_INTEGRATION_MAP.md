@@ -1,7 +1,5 @@
 # AHD Landing Funnel and Integration Map
 
-**Version:** 3.0 — Final WhatsApp-first funnel
-
 ## Main Site / Organic Path
 
 ```text
@@ -15,7 +13,7 @@ Homepage / SEO
 → official process outside the website
 ```
 
-The catalogue and profile are backed by the public API. Only published and requestable workers are presented as active inventory. The worker’s public AHD reference is taken from API data and included in the message.
+The React/Vite catalogue and profile read approved public DTOs from the Laravel API backed by MySQL. Only published and requestable workers are presented as active inventory. The worker's trusted public AHD reference is inserted into the specific-worker message.
 
 ## Paid / Search Path
 
@@ -35,7 +33,7 @@ The matching form uses temporary frontend state, shared validation, a pure messa
 
 ## Integration Boundaries
 
-The active boundaries are the Express public/admin API, PostgreSQL, optional S3-compatible worker media, non-PII analytics events, and the configured WhatsApp URL handoff. No CRM, persistent `MATCHING_REQUEST`, lead assignment/status history, follow-up scheduler, queue notification, or customer account is part of the current funnel.
+The current application boundary is React/Vite, Laravel/MySQL, optional local/public or S3-compatible worker media, safe non-PII analytics, and the configured WhatsApp handoff. There is no CRM, lead assignment/status history, follow-up scheduler, queue notification, customer account, customer database, booking, or payment integration.
 
 ## Analytics
 

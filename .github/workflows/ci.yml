@@ -47,3 +47,66 @@ jobs:
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high
+
+  laravel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ahd_test
+          MYSQL_USER: ahd
+          MYSQL_PASSWORD: ahd
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uahd -pahd"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, xml, curl, zip, gd
+          coverage: none
+
+      - name: Install Composer dependencies
+        working-directory: laravel-api
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Configure Laravel test environment
+        working-directory: laravel-api
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Check PHP syntax
+        working-directory: laravel-api
+        run: find app database/migrations database/seeders routes bootstrap tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Migrate MySQL
+        working-directory: laravel-api
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ahd_test
+          DB_USERNAME: ahd
+          DB_PASSWORD: ahd
+        run: php artisan migrate --force
+
+      - name: Laravel feature tests
+        working-directory: laravel-api
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ahd_test
+          DB_USERNAME: ahd
+          DB_PASSWORD: ahd
+        run: php artisan test

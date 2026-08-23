@@ -1,52 +1,23 @@
-# AHD Security and Permission Boundaries
-
-**Version:** 4.0 — Verified MVP Security Baseline
-
-AHD protects admin access, internal worker data, operational settings, public DTO boundaries, media ownership, and the temporary customer-to-WhatsApp handoff. Verified controls and environment-dependent items are separated below.
+# AHD Security Baseline
 
 ## Verified Controls
 
-| Boundary | Implemented protection |
-|---|---|
-| Admin authentication | scrypt password verification and opaque session tokens represented by SHA-256 hashes |
-| Session transport | HTTP-only cookie; production policy uses secure deployment settings and `SameSite=Lax` |
-| Authorization | Server-side role enforcement on admin operations; public routes cannot mutate admin data |
-| Input validation | Zod validation for admin mutations, public settings, media policy, and shared customer form readiness |
-| SQL safety | Parameterized PostgreSQL queries |
-| Public privacy | Explicit public DTO projections; internal notes, audit data, and admin fields remain private |
-| Media | MIME/size constraints, HTTPS/public URL policy, and worker-scoped ownership checks |
-| WhatsApp destination | Configuration-driven trusted destination; public input cannot override it |
-| Analytics | Safe-property filtering excludes customer name, phone, email, free-text note, and full message |
-| Browser storage | Customer form PII is not persisted to localStorage/sessionStorage by default |
-| CORS | Explicit `AHD_ALLOWED_ORIGINS` allowlist; credentials are not combined with wildcard origin |
-| Database lifecycle | Versioned transactional SQL migrations with checksums, advisory lock, status, and idempotent rerun |
-| Dependencies | High-severity audit gate is part of CI and must remain at zero HIGH/CRITICAL findings |
+Laravel admin routes require a server-side session lookup. Login stores only a SHA-256 hash of an opaque random token in `admin_sessions`; the token is delivered through an HTTP-only cookie with expiry and logout invalidation. Production configuration must set Secure cookies over HTTPS and an appropriate SameSite policy.
 
-## Customer Form Boundary
+Role middleware enforces `SUPER_ADMIN`, `ADMIN`, `OPERATIONS`, `CONTENT_MANAGER`, and `ANALYST` boundaries on the server. Frontend hiding is not an authorization boundary. Worker and skill mutations run in database transactions. Laravel validation is authoritative for admin writes.
 
-Customer forms use temporary frontend state:
+Public routes are read-only and use explicit DTO projections. Internal notes, audit metadata, private media, admin credentials, session tokens, and database-only fields are not returned publicly. Public input cannot override the trusted WhatsApp destination. Customer form data is not persisted as leads or CRM records, and analytics excludes customer name, phone, email, free-text notes, and full messages.
 
-```text
-validate → build structured message → emit non-PII event → open WhatsApp
-```
+MySQL uses `utf8mb4`, foreign keys, unique public code/slug constraints, and indexed public filters. Migrations run explicitly with `php artisan migrate --force`; HTTP requests never create schema. Media validates MIME type, size, worker ownership, safe storage paths, and HTTPS for production public URLs. Local development may use controlled `/storage/...` paths only in `APP_ENV=local`.
 
-The application does not create a Lead, matching-request, CRM, or customer-account record. The selected worker reference is taken from trusted API data. The message is URL-encoded before opening the configured destination.
+CORS must use an explicit `AHD_ALLOWED_ORIGINS` allowlist. Wildcard origin is not compatible with credentialed cookies. `APP_DEBUG=false`, secret values outside Git, and a real production `APP_KEY` are required.
 
-## Admin and Data Boundaries
+## Environment-Dependent Release Checks
 
-The backend owns admin CRUD, publication/status, availability, permissions, settings, audit logging, and public/private DTO rules. A public caller can read approved public data but cannot create or mutate workers, taxonomy, content, settings, or media. Media update/delete requests verify that the media belongs to the requested worker.
+The repository cannot prove the intended shared-hosting document-root mapping, PHP configuration, permissions, HTTPS certificate/domain, secure-cookie behavior behind the host proxy, persistent media retrieval, or production backup/restore. These checks require an authorized staging or production-like hosting account.
 
-## Environment-Dependent Verification
+Before launch, confirm that only Laravel's intended public entry point and built static assets are web-accessible; `.env`, `vendor`, private storage, source, database configuration, and logs must not be exposed. Confirm MySQL credentials use a least-privilege account, storage is persistent, public media is retrievable over HTTPS, and the actual domain/origin is in the allowlist.
 
-Real production readiness still depends on deployment configuration that cannot be proven by local code inspection:
+## Incident and Scope Guardrails
 
-- A real HTTPS staging domain must verify Secure-cookie behavior across the intended frontend/API topology.
-- Real S3-compatible credentials, bucket policy, endpoint, public base URL, and network access must verify presigning, binary upload, and public retrieval.
-- Secret values must be supplied through a deployment secret manager and must never be committed.
-- `AHD_ALLOWED_ORIGINS` must be set to the real frontend origin(s), not a wildcard.
-
-These are deployment gates, not reasons to add CRM, persistence, queues, or a new framework.
-
-## Operational Rules
-
-Run database migrations before production traffic. Keep public content and contact settings admin/data-driven. Do not publish unverified licenses, guarantees, government affiliation, pricing, response promises, or private worker information. Any future CRM, official integration, automated outbound messaging, or customer-account feature requires a separate threat model and security review.
+Do not add CRM, leads, queues, Redis, BullMQ, customer accounts, payment data, or message persistence to solve an operational problem without an explicit product and security review. Do not place credentials, customer data, test passwords, or full WhatsApp messages in logs, fixtures, reports, or committed files.

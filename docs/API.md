@@ -1,88 +1,65 @@
 # AHD API Contract
 
-**Version:** 4.0 — Verified Express API
+The current API is Laravel 12 under `/api`. JSON success responses use `{ "data": ... }`; errors use `{ "message": "..." }` and appropriate HTTP status codes. The existing React adapter remains unchanged by using the same `/api/v1` route shapes and field names.
 
-The current API is an Express 5 application. This document describes the registered route surface in the maintained server under `artifacts/api-server`; it is not generated from NestJS/OpenAPI codegen. Customer request forms remain frontend → WhatsApp flows and do not create backend lead records.
+## Health and Readiness
 
-## Base Paths and Service Endpoints
-
-The API routes are mounted under `/api`.
-
-| Method | Path | Purpose | Auth |
+| Method | Path | Auth | Result |
 |---|---|---|---|
-| `GET` | `/api/healthz` | Dependency-light liveness | Public |
-| `GET` | `/api/readyz` | Database/migration readiness | Public |
-
-Readiness returns success only when the configured database is reachable and the migration lifecycle is in an acceptable state. Liveness does not prove database readiness.
+| GET | `/api/healthz` | None | Dependency-light liveness `{status:"ok"}`. |
+| GET | `/api/readyz` | None | Database readiness; `503` when MySQL is unavailable. |
 
 ## Public Read API
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/workers` | Published, public worker catalogue with approved filtering/search |
-| `GET` | `/api/v1/workers/:slug` | One published public worker profile |
-| `GET` | `/api/v1/nationalities` | Active public nationality options |
-| `GET` | `/api/v1/skills` | Active public skill options |
-| `GET` | `/api/v1/content/:key` | Active public content block |
-| `GET` | `/api/v1/public-settings` | Approved public contact settings such as WhatsApp/phone |
+| Method | Path | Query/path | Result |
+|---|---|---|---|
+| GET | `/api/v1/workers` | `q`, `skill`, `nationality`, `availability` | Published, active-nationality public worker DTOs. |
+| GET | `/api/v1/workers/{slug}` | Slug or public code | One published public worker DTO or `404`. |
+| GET | `/api/v1/nationalities` | None | Active taxonomies in camelCase public shape. |
+| GET | `/api/v1/skills` | None | Active skills in camelCase public shape. |
+| GET | `/api/v1/content/{key}` | Content key | Active localized content or `404`. |
+| GET | `/api/v1/public-settings` | None | Trusted `whatsappNumber` and `phoneNumber` values when configured. |
 
-Public responses use explicit DTO projections. Internal IDs, private notes, audit data, admin credentials, and other non-public fields are not serialized into the public contract.
+Public routes are read-only. A public worker DTO contains the approved public code, display name, slug, nationality, age, city, experience, public summary, languages, skill labels, availability, featured state, and public media. It does not contain internal notes, audit fields, admin IDs, private media, or database-only metadata.
 
 ## Admin Authentication
 
-| Method | Path | Purpose |
+| Method | Path | Behavior |
 |---|---|---|
-| `POST` | `/api/v1/admin/auth/login` | Verify configured admin credentials and issue an HTTP-only session cookie |
-| `POST` | `/api/v1/admin/auth/logout` | Revoke the current session |
-| `GET` | `/api/v1/admin/auth/session` | Return the current authenticated admin or an unauthorized response |
+| POST | `/api/v1/admin/auth/login` | Validates email/password, creates an expiring opaque session token, stores only its SHA-256 hash, and sets an HTTP-only cookie. |
+| POST | `/api/v1/admin/auth/logout` | Deletes the current session record and forgets the cookie. |
+| GET | `/api/v1/admin/auth/session` | Returns the authenticated admin DTO or `401`. |
 
-Sessions use an opaque token whose SHA-256 hash is stored server-side. Password verification uses scrypt. Admin requests must carry the session cookie and satisfy the required role.
+The production cookie must be secure over HTTPS and use an appropriate SameSite policy. Tokens are not returned in JSON or stored in localStorage.
 
-## Admin Worker and Media Routes
+## Admin Operations
 
-| Method | Path | Purpose |
+All paths below require the session cookie. Role middleware enforces the approved role capabilities; missing/expired sessions return `401`, insufficient roles return `403`, invalid input returns `422`, missing resources return `404`, and database constraint failures must not leave partial transactional worker writes.
+
+| Method | Path | Operation |
 |---|---|---|
-| `GET` | `/api/v1/admin/workers` | List operational workers |
-| `POST` | `/api/v1/admin/workers` | Create a worker draft |
-| `PATCH` | `/api/v1/admin/workers/:id` | Update a worker |
-| `POST` | `/api/v1/admin/workers/:id/publish` | Publish a worker |
-| `POST` | `/api/v1/admin/workers/:id/unpublish` | Return a worker to unpublished state |
-| `POST` | `/api/v1/admin/workers/:id/archive` | Archive a worker |
-| `PATCH` | `/api/v1/admin/workers/:id/availability` | Change availability |
-| `POST` | `/api/v1/admin/workers/:id/media/upload` | Prepare an S3-compatible presigned upload |
-| `POST` | `/api/v1/admin/workers/:id/media` | Save approved URL media metadata |
-| `PATCH` | `/api/v1/admin/workers/:id/media/:mediaId` | Update owned media metadata |
-| `DELETE` | `/api/v1/admin/workers/:id/media/:mediaId` | Delete owned media metadata |
+| GET | `/api/v1/admin/workers` | List full operational worker records. |
+| POST | `/api/v1/admin/workers` | Create a worker and atomically assign skill IDs. |
+| PATCH | `/api/v1/admin/workers/{id}` | Update worker fields and optionally replace skills atomically. |
+| POST | `/api/v1/admin/workers/{id}/publish` | Publish a worker. |
+| POST | `/api/v1/admin/workers/{id}/unpublish` | Return a worker to draft. |
+| POST | `/api/v1/admin/workers/{id}/archive` | Archive a worker. |
+| PATCH | `/api/v1/admin/workers/{id}/availability` | Set an approved availability state. |
+| GET/POST/PATCH | `/api/v1/admin/nationalities[/{id}]` | Read/create/update taxonomies. |
+| GET/POST/PATCH | `/api/v1/admin/skills[/{id}]` | Read/create/update skills. |
+| GET/PATCH | `/api/v1/admin/content/{key}` | Read/update localized content. |
+| GET/PATCH | `/api/v1/admin/settings/{key}` | Read/update trusted settings such as WhatsApp/phone. |
+| POST | `/api/v1/admin/workers/{id}/media/upload` | Upload through local/public disk or return S3-compatible upload metadata when configured. |
+| POST/PATCH/DELETE | `/api/v1/admin/workers/{id}/media[/{mediaId}]` | Save, update, or delete owned media metadata. |
 
-Media upload preparation is constrained by approved MIME type and size policy. URL media must satisfy the HTTPS/public policy. Media operations verify that the media belongs to the requested worker.
+## Worker Input Shape
 
-## Admin Taxonomy, Content, and Settings Routes
+Worker mutations accept the existing frontend field contract: `publicCode`, `displayName`, `slug`, `nationalityId`, `age`, `currentCity`, `yearsExperience`, `saudiExperienceYears`, `publicSummaryEn`, `publicSummaryAr`, `languages`, `internalNotes`, `availabilityStatus`, `publicationStatus`, `isFeatured`, `sortOrder`, and `skillIds`. The Laravel boundary also accepts the persisted snake_case names used by the admin table.
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/admin/nationalities` | List nationalities |
-| `POST` | `/api/v1/admin/nationalities` | Create nationality |
-| `PATCH` | `/api/v1/admin/nationalities/:id` | Update nationality |
-| `GET` | `/api/v1/admin/skills` | List skills |
-| `POST` | `/api/v1/admin/skills` | Create skill |
-| `PATCH` | `/api/v1/admin/skills/:id` | Update skill |
-| `GET` | `/api/v1/admin/content/:key` | Read an admin content block |
-| `PATCH` | `/api/v1/admin/content/:key` | Upsert an admin content block |
-| `GET` | `/api/v1/admin/settings/:key` | Read a setting |
-| `PATCH` | `/api/v1/admin/settings/:key` | Upsert an approved setting |
+## Media Rules
 
-Route-level role checks protect operational mutations. Important changes are written to the audit log where implemented.
+Approved types are JPEG, PNG, WebP, and MP4 with configured size limits. Media must belong to the referenced worker. Production public media URLs must use HTTPS; local development may use controlled `/storage/...` paths. Unsafe types, oversized files, invalid URLs, cross-worker media IDs, and unconfigured storage are rejected.
 
-## Customer Request Contract
+## Explicit Non-Routes
 
-There is intentionally no current `POST /leads`, `POST /leads/matching`, or `POST /requests` endpoint. Specific-worker and matching forms use temporary frontend state:
-
-```text
-frontend validation → pure message builder → non-PII analytics event → encoded configured WhatsApp URL
-```
-
-The specific-worker message uses the trusted public worker reference returned by the API. The matching message uses the approved two-step answers. Public input cannot override the configured WhatsApp destination.
-
-## Errors and CORS
-
-Malformed or rejected input is returned as a structured client error, normally HTTP 400. Missing resources return HTTP 404. Missing/invalid authentication returns HTTP 401; insufficient role returns HTTP 403. Oversized media returns HTTP 413. Missing external storage configuration returns an explicit service/configuration error rather than a false success. CORS uses `AHD_ALLOWED_ORIGINS` as an explicit allowlist and supports credentials only for allowed origins; wildcard origin is not used with credentials.
+There is no `POST /leads`, `POST /leads/matching`, customer account endpoint, booking endpoint, payment endpoint, CRM endpoint, queue endpoint, or persisted matching-request endpoint. WhatsApp requests are assembled in the frontend and are not submitted to Laravel as customer records.

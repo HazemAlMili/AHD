@@ -46,18 +46,18 @@ The website does not need an internal CRM to complete this loop.
 
 ## 4. Current Project Stage
 
-- Implementation: **completed for the verified MVP slice**.
-- Independent QA/correction: **completed; result PASS WITH NON-BLOCKING ITEMS**.
-- Repository hardening: **completed and pushed in `82b9b97`**.
-- Configured staging verification: **completed with external blockers** using a dedicated disposable PostgreSQL/API/frontend environment; no real staging host or production data was used.
-- Documentation reconciliation: **completed in Task 3; canonical docs now match verified implementation**.
-- Production readiness: **AHD PRODUCTION READY — EXTERNAL DEPLOYMENT BLOCKER**.
-- Production deployment: **not executed** because no authorized hosting/domain/database/S3 target or deployment credentials were available in Task 4.
-- Production launch: pending one authorized external deployment target/configuration, including real S3 and HTTPS/domain verification.
+- Implementation: **completed for the approved MVP slice**.
+- Independent QA/correction and repository hardening: **completed and pushed**.
+- Laravel/MySQL architecture pivot: **implemented and verified against disposable MySQL**; the React/Vite UI remains unchanged.
+- Backend parity: **verified** for health/readiness, auth/session/RBAC, worker/taxonomy/content/settings/media operations, transactions, public DTO privacy, and both WhatsApp journeys.
+- Documentation reconciliation: **in progress for the Laravel/MySQL pivot**; canonical docs are being updated before the migration closure commit.
+- Production readiness: **REPOSITORY READY WITH EXTERNAL HOSTING CHECKS**.
+- Production deployment: **not executed** because no authorized shared-hosting/domain/S3 target or deployment credentials are available.
+- Production launch: pending authorized shared-hosting PHP/MySQL/HTTPS/storage verification.
 
 ## 5. Current Architecture
 
-Verified current runtime architecture:
+Current runtime architecture:
 
 ```text
 Vite + React public/admin app
@@ -65,26 +65,27 @@ Vite + React public/admin app
   ├─ local form state → shared Zod validation
   └─ message builder → encoded WhatsApp URL
         │
-Express 5 API
+Laravel 12 API on PHP 8.2+
   ├─ admin session/RBAC and CRUD
   ├─ explicit public DTOs
-  └─ audit/media/settings endpoints
+  ├─ transactions, audit, settings, and media policy
+  └─ `/api/v1` contract preserved for the existing UI
         │
-PostgreSQL (Drizzle schema + pg runtime)
+MySQL 8-compatible schema (Laravel migrations + Eloquent)
         │
-S3-compatible object-storage abstraction for worker media
+Local/public Filesystem or optional S3-compatible media disk
 ```
 
-Historical materials contained Next.js/NestJS/Prisma assumptions, but the verified implementation is React 19/Vite/wouter/Tailwind + Express 5 + PostgreSQL parameterized `pg` queries + Drizzle declarations where applicable. Those materials are classified as historical/superseded; do not perform a framework/ORM rewrite to match them. Migrate only through an explicit approved decision with visual and behavioral parity.
+Historical materials contained Next.js/NestJS/Prisma assumptions, and the prior Express/PostgreSQL application is now superseded reference material. The current authority is React 19/Vite/wouter/Tailwind + Laravel 12/PHP + MySQL/Eloquent. Do not extend the old backend for new production behavior.
 
-Database lifecycle is now explicit: version-controlled SQL lives under `db/migrations/`, and `pnpm db:migrate` / `pnpm db:status` run through the existing `pg` architecture. The migration runner uses transactional execution, a PostgreSQL advisory lock, checksums, repeatable application, and safe adoption of an existing compatible schema. `ensureSchema()` remains available for local/test bootstrap but is a no-op in production; production schema changes must happen through the migration command before traffic.
+Database lifecycle is explicit: `laravel-api/database/migrations` is authoritative and deployment runs `php artisan migrate --force` before traffic. The disposable MySQL migration was applied fresh and rerun idempotently; HTTP requests never create schema.
 
 Architect for scale, deploy for current reality:
 
-- PostgreSQL is the durable business source of truth.
-- Keep web/API stateless where practical.
-- Use connection pooling and object storage/CDN in production.
-- Preserve horizontal-scaling options without adding distributed infrastructure prematurely.
+- MySQL is the durable business source of truth.
+- Keep the web/API tier stateless where practical.
+- Use persistent shared-hosting storage or approved object storage for media.
+- Do not add Redis, queues, or distributed infrastructure without a separate approved scope decision.
 
 ## 6. Backend Scope
 
@@ -211,21 +212,9 @@ Requirements:
 
 ## 13. Current Data Model
 
-The current Drizzle/PostgreSQL schema is in `lib/db/src/schema/index.ts`; runtime bootstrap/schema safety is in the API server. Important entities:
+The active MySQL schema is defined by `laravel-api/database/migrations/2026_08_23_000000_create_ahd_schema.php` and represented by Eloquent models in `laravel-api/app/Models`. Important entities are `AdminUser`, `AdminSession`, `Worker`, `Nationality`, `Skill`, `WorkerMedia`, `ContentBlock`, `SystemSetting`, and `AuditLog`, plus the worker-skill pivot.
 
-- `AdminUser` and `AdminSession`.
-- `Worker`.
-- `Nationality`.
-- `Skill`.
-- `WorkerSkill`.
-- `WorkerMedia`.
-- `ContentBlock`.
-- `SystemSetting`.
-- `AuditLog`.
-
-There are no current customer, lead, booking, payment, or CRM entities. Publication and availability are represented by separate enums as listed above.
-
-`docs/prisma/schema.prisma` exists only as a historical/superseded snapshot; it is not the runtime authority. The versioned SQL under `db/migrations` is the migration authority, with Drizzle declarations in `lib/db` used where applicable.
+There are no customer, lead, booking, payment, CRM, queue, Redis, or BullMQ entities. Publication and availability remain separate enum-like values as listed above. `docs/prisma/schema.prisma`, `lib/db`, and `db/migrations` are historical/superseded references only.
 
 ## 14. Security & Privacy Guardrails
 
@@ -297,20 +286,17 @@ If canonical docs disagree with the verified implementation, investigate before 
 
 | Area | State | Evidence / boundary |
 |---|---|---|
-| Public catalogue/profile API | **VERIFIED** | Live database-backed list/profile; publication, active-nationality, search/filter behavior checked. |
-| Public DTO privacy | **VERIFIED** | Actual responses omit internal notes, IDs, private metadata, and sensitive media. |
-| Admin auth/session/RBAC | **VERIFIED** | Live login/session and unauthorized public mutation checks passed. |
-| Worker CRUD/status/availability | **VERIFIED** | Live create/update/read, draft/publish/unpublish/archive, availability, and rollback checks passed. |
-| Taxonomy CRUD | **VERIFIED** | Live nationality and skill create/update and worker relation checks passed. |
-| Settings | **VERIFIED** | WhatsApp validation/configuration and invalid-value non-persistence checked. |
-| Content UI/API | **IMPLEMENTED; live mutation not independently exercised in the latest matrix** | Preserve the admin content surface; add focused integration coverage before extending it. |
-| Worker media URL CRUD/ownership | **VERIFIED** | HTTPS create/update/delete and cross-worker denial checked. |
-| Binary S3-compatible upload | **PARTIAL** | Policy/presign boundary exists; real object-storage upload needs configured staging storage. |
-| Specific-worker form/builders | **VERIFIED** | Shared validation/message/URL tests and browser inline-validation/wiring checks passed. |
-| Matching LP/forms/builders | **VERIFIED** | Browser Step 1 → Step 2 and unit message/validation checks passed. |
-| Outbound WhatsApp handoff | **PARTIAL** | Correct URL generation and UI wiring verified; no real external message was sent during QA. |
-| Analytics privacy/event vocabulary | **VERIFIED by inspection** | Allowlist and PII-key filtering present; provider-side delivery is not configured. |
-| Prototype visual preservation | **VERIFIED** | Representative routes checked at 390px, 768px, and 1440px. |
+| Laravel public catalogue/profile API | **VERIFIED** | MySQL-backed list/profile, publication, search/filter, and DTO checks passed. |
+| Public DTO privacy | **VERIFIED** | Internal notes, IDs, private metadata, and sensitive media omitted. |
+| Laravel auth/session/RBAC | **VERIFIED** | Login/session cookie, admin dashboard, unauthorized and role boundaries passed. |
+| Worker CRUD/status/availability | **VERIFIED** | Create/update, skill relation, publish/unpublish/archive, availability, and audit checks passed. |
+| Taxonomy/content/settings | **VERIFIED** | MySQL feature tests cover taxonomy, localized content, and public contact settings. |
+| Local/public media upload | **VERIFIED locally** | Disposable image upload and storage path policy passed. |
+| Binary S3-compatible upload | **EXTERNAL CHECK** | Optional S3 path exists; real credentials/upload/public retrieval require authorized hosting. |
+| Specific-worker form/builders | **VERIFIED** | React browser preview and shared validation/message/URL checks passed. |
+| Matching flow/builders | **VERIFIED** | Browser Step 1 → Step 2 → WhatsApp preview passed. |
+| Admin React integration | **VERIFIED** | Same-site localhost cookie topology loaded dashboard and worker rows. |
+| Prototype visual preservation | **VERIFIED** | Existing React UI preserved; production build passes. |
 
 ## 20. Important Previous QA Fixes
 
@@ -328,32 +314,28 @@ These corrections are confirmed in the current code and must not regress:
 
 ## 21. Current QA Status
 
-Latest QA result: **STAGING PASS WITH EXTERNAL BLOCKERS**. The dedicated disposable staging run exercised the real built API, Vite frontend, PostgreSQL migration lifecycle, admin session/RBAC, worker CRUD/publication/availability, public catalogue/profile/filtering/DTO privacy, both WhatsApp URL journeys, and the browser/axe audit. The remaining blockers are external configuration/platform items only.
+Latest QA result: **LARAVEL/MYSQL PARITY PASS WITH EXTERNAL HOSTING CHECKS**. Disposable MySQL exercised fresh and idempotent Laravel migrations, admin session/RBAC, worker CRUD/publication/availability, taxonomy/content/settings, local media upload/ownership, public catalogue/profile/filtering/DTO privacy, both WhatsApp preview journeys, and the React admin dashboard. The remaining blockers are shared-hosting and external storage checks only.
 
 Verified QA evidence:
 
-- Live isolated PostgreSQL/API authorization and CRUD matrix passed.
-- Public publication lifecycle and DTO privacy passed.
-- Golden admin slice passed: login → create AHD worker → assign taxonomy → publish → public catalogue.
-- Public profile and matching form browser checks passed.
-- Shared unit suite: 7/7 passed.
-- TypeScript build/typecheck passed.
-- API bundle build passed.
-- Vite production build passed.
-- Production dependency audit: no known vulnerabilities after targeted patched-version overrides for the audited dependency chains.
-- Repository lint passes through `pnpm lint` with defect-focused TypeScript/React/Node rules; the preserved mockup artifact is intentionally excluded from maintained-product lint coverage.
-- Visual/RTL checks passed at 390px, 768px, and 1440px.
+- Fresh and idempotent disposable MySQL migration passed; `php artisan migrate:status` reports the active schema applied.
+- Laravel feature suite: 6 tests / 48 assertions passed, including auth, CRUD, content/settings, media upload/ownership, privacy, and audit.
+- Golden admin slice passed: login → list/create/update/archive worker → public catalogue propagation.
+- Public profile and matching form browser previews passed with Arabic messages; no external message was sent.
+- React shared unit suite: 7/7 passed; TypeScript typecheck and production build passed.
+- Laravel PHP syntax and API route inspection passed.
+- Production dependency audit: no known vulnerabilities in the Node dependency graph.
+- Repository lint passes with seven known non-fatal Fast Refresh warnings; Laravel vendor assets are excluded from root JavaScript lint and verified with PHP-specific checks.
+- Existing React visual/RTL behavior was preserved; no UI redesign was introduced.
 
-## 22. Known Non-Blocking Items
+## 22. Known External Checks
 
-- Automated axe/CDP E2E coverage is incomplete; the current evidence includes manual browser checks, focused unit tests, and live API integration checks.
-- Real binary S3 upload has not been exercised with configured staging object storage.
-- No real outbound WhatsApp message was sent during QA; external transmission requires a controlled destination and action-time approval.
-- Vite reports an existing tooltip source-map warning during production build; the build still succeeds.
-- The disposable staging database, controlled WhatsApp preview, and browser/axe audit were verified; real object storage and deployed HTTPS/domain topology remain external blockers.
-- Real binary S3 upload/public retrieval remains an external blocker because configured staging object storage was unavailable; URL-media policy/ownership negatives passed.
-- No production-like staging domain/HTTPS endpoint was available; local production-mode cookie attributes were verified (`HttpOnly`, `Secure`, `SameSite=Lax`, root path), but deployed HTTPS topology remains an external blocker.
-- Controlled WhatsApp preview URLs and Arabic messages passed for both golden journeys; no final external send was performed, and a real external send is not required for codebase readiness.
+- Real shared-hosting deployment has not been exercised; PHP version/extensions, document-root isolation, writable directories, and cache/storage permissions remain host checks.
+- Real production-like HTTPS/domain topology has not been exercised; secure-cookie behavior and credentialed CORS must be verified on the intended host.
+- Real S3-compatible binary upload/public retrieval has not been exercised; local/public-disk upload passed on disposable MySQL.
+- No real outbound WhatsApp message was sent; controlled preview URLs and Arabic messages passed for both golden journeys.
+- Vite reports the existing tooltip source-map warning during production build; the build succeeds.
+- Synthetic MySQL/admin/worker fixtures are disposable and must be removed before any production classification.
 
 ## 23. Agent Working Protocol
 
@@ -414,13 +396,11 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 26. Current Next Action
 
-**NEXT ACTION:** Provide or authorize one production deployment target with its domain, PostgreSQL, S3-compatible storage, and secret-management configuration; then deploy and run the Task 4 live smoke suite. Do not create new repository feature work for the already-passing MVP scope.
+**NEXT ACTION:** Provide or authorize one conventional shared-hosting target with its domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then deploy `laravel-api` and run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope.
 
-## 27. Task 4 External Deployment State
+## 27. Architecture Pivot State
 
-Task 4 baseline passed: frozen install, lint, typecheck, tests (7/7), production build, dependency audit, and GitHub Actions CI. The available disposable local PostgreSQL staging environment reported `0001_initial: APPLIED` and `/api/readyz` returned database ready; safe public-read and public-mutation-denial smoke checks passed. This is not production deployment evidence.
-
-No authorized frontend host, API host, domain/DNS/TLS topology, production database target, S3-compatible credentials, or deployment workflow was available in the current session. No deployment was attempted and no production data was touched. The exact blocker is an authorized external deployment target/configuration. Once supplied, verify S3 binary upload/public retrieval, HTTPS/CORS/Secure-cookie behavior, production migration/readiness, and the post-deploy golden slice.
+The Laravel/MySQL architecture pivot was approved, implemented, tested, and browser-verified without changing the React UI or product scope. The old Express/PostgreSQL implementation is preserved as rollback/reference material and is no longer current production authority. No authorized shared-hosting target, production domain, or S3-compatible credentials are available, so no external deployment was attempted and no production data was touched. Once supplied, verify PHP/extension/document-root behavior, MySQL readiness, persistent media upload/public retrieval, HTTPS/CORS/Secure-cookie behavior, backups/restore, and the post-deploy golden slice.
 
 ## 28. Memory Maintenance Rules
 

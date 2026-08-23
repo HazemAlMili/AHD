@@ -1,12 +1,8 @@
 # AHD Testing Strategy
 
-**Version:** 4.0 — Verified Quality and Staging Strategy
+## Required Gates
 
-Testing is layered. Static repository gates prove build and dependency integrity; unit and integration checks prove domain/security behavior; configured staging proves the built application against a real disposable database and browser; deployment-specific storage/HTTPS checks remain environment gates.
-
-## Repository Gates
-
-Run the same sequence used by `.github/workflows/ci.yml`:
+The React repository gates remain:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -17,41 +13,43 @@ PORT=3001 BASE_PATH=/ pnpm build
 pnpm audit --audit-level=high
 ```
 
-The required audit classification is zero HIGH and zero CRITICAL vulnerabilities. Existing non-fatal lint warnings and the known Vite tooltip source-map warning must not be confused with failing gates.
+The Laravel backend gates are:
 
-## Unit and Authorization Coverage
+```bash
+cd laravel-api
+composer install
+find app database/migrations database/seeders routes bootstrap tests -name '*.php' -print0 | xargs -0 -n1 php -l
+php artisan migrate:fresh --force
+php artisan migrate --force
+php artisan migrate:status
+php artisan test
+php artisan route:list --path=api
+```
 
-The current test suite covers publication/requestability rules, approved form validation, deterministic Arabic WhatsApp message builders and encoding, and admin role middleware. Public mutation denial and insufficient-role behavior are security invariants, not optional UI behavior.
+Laravel verification must use disposable MySQL, not SQLite, because foreign keys, JSON, indexes, collations, and MySQL behavior are part of the production contract.
 
-## Database and API Integration
+## Backend Coverage
 
-Configured staging or a disposable non-production target must verify fresh migration, migration rerun, status, compatible existing-schema adoption, readiness, admin login/session, worker CRUD, taxonomy relations, publication, availability, media ownership, settings, public DTO privacy, and understandable error responses. Use synthetic data only and remove or destroy it after verification.
+The Laravel feature suite covers liveness/readiness, public taxonomy and worker visibility, admin login/session, worker lifecycle, publication, availability, public DTO privacy, settings, localized content, invalid media URLs, local-disk upload, media ownership, deletion, and audit records. Worker create/update and skill pivot writes are transaction-protected.
 
 ## Browser Golden Slices
 
-The required browser journeys are:
+The verified local browser slices are:
 
-```text
-Admin login → create worker → taxonomy/media → publish → public appearance
-Worker profile → validated specific-worker form → correct WhatsApp URL
-Matching landing page → Step 1 → Step 2 → consent → correct WhatsApp URL
-Direct/refresh thank-you route → truthful state without browser PII persistence
-```
+1. Open the React/Vite catalogue backed by Laravel, inspect a published worker profile, fill the specific-worker form with synthetic values, and confirm WhatsApp displays a structured preview without sending.
+2. Complete matching Step 1 and Step 2 with synthetic answers and consent, then confirm WhatsApp displays the structured matching preview without sending.
+3. Log into the admin UI with a disposable local account and confirm the dashboard lists the seeded and API-created worker records.
 
-Verify catalogue, profile, filters, forms, admin login/workers, and thank-you behavior at representative 390px mobile, 768px tablet, and 1440px desktop widths. Confirm Arabic RTL, primary CTA usability, no unbounded page overflow, and an understandable unavailable-API state.
+The frontend and API must use the same site host in local testing (`localhost` on both sides) so the HTTP-only cookie is not misdiagnosed as an application failure due to a 127.0.0.1/localhost host mismatch.
 
-## Accessibility
+## Security Checks
 
-Use `scripts/src/browser-audit.mjs` with a compatible Chromium CDP session where possible. The audit checks accessible names, labels, duplicate IDs, missing image alt text, layout overflow, `lang`/`dir`, and axe-core WCAG 2.2 AA violations. Manually inspect keyboard/focus behavior, required-state messaging, semantic buttons/links, and the intentional horizontal scroll container in the dense admin table.
+Verify unauthenticated admin routes return `401`, insufficient roles return `403`, public mutation attempts are rejected, unsafe/oversized media is rejected, cross-worker media IDs return `404`, public DTOs exclude internal fields, and no customer submission creates a database row. Verify CORS with explicit allowlisted origins and credentials.
 
-## Security and Privacy
+## Environment-Dependent Checks
 
-Verify server-side admin authorization, public mutation denial, explicit CORS allowlist, cookie attributes when HTTPS exists, explicit public DTOs, media ownership/HTTPS policy, configuration-driven WhatsApp destination, dependency audit, and analytics PII filtering. Analytics must not contain customer name, phone, email, free-text note, or the full message.
+An authorized shared-hosting or staging environment must additionally verify PHP version/extensions, document-root isolation, HTTPS and secure cookies, real MySQL connectivity, persistent local/S3-compatible media upload and public retrieval, cache/storage permissions, backup/restore, and the configured domain/origin. Local disposable MySQL and WhatsApp preview pages do not prove those release checks.
 
-## Performance and Runtime Observation
+## Data Hygiene
 
-Record meaningful findings from browser console/network inspection: blocking runtime errors, failed application requests, mixed content, CORS failures, missing assets, repeated API loops, or catastrophic layout/bundle problems. Source-map-only build warnings are non-blocking when the build succeeds. Do not perform speculative optimization.
-
-## Evidence Classification
-
-Use **STAGING PASS** only when all materially required checks available to the environment pass. Use **STAGING PASS WITH EXTERNAL BLOCKERS** when repository-controlled behavior is clean but real HTTPS, S3, or other external platform configuration is unavailable. Use **STAGING FAIL** when a repository-controlled runtime, security, or functional defect remains.
+Use unmistakable synthetic fixtures, keep credentials in ignored local files or environment variables, never commit test passwords, and delete all synthetic workers, sessions, media, settings, content, and admin records after a run against a disposable database.

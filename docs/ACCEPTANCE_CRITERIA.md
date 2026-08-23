@@ -1,65 +1,25 @@
 # AHD Acceptance Criteria
 
-**Version:** 4.0 — Final MVP Closure Criteria
+## Product and UI
 
-The criteria below describe the current product behavior. The repository-controlled criteria were verified in the disposable staging run; real object storage and deployed HTTPS remain environment-dependent gates.
+The existing React/Vite public and admin UI remains the product surface. Arabic RTL, catalogue search/filtering, worker profile, specific-worker form, two-step matching form, truthful invalid/refresh states, admin login, and operational navigation must render without scope or redesign changes.
 
-## Admin
+## Backend and Database
 
-- [x] Authorized admin can log in and maintain a session.
-- [x] Worker CRUD, nationality CRUD, and skill CRUD work through the protected API.
-- [x] Admin can publish, unpublish, archive, change availability, feature/order, and manage approved media.
-- [x] Admin can configure WhatsApp/public contact settings and public content.
-- [x] Public output updates from admin-managed data without source-code changes.
+The Laravel API must pass PHP syntax checks, `php artisan route:list --path=api`, fresh MySQL migration, idempotent migration rerun, readiness, feature tests, and the API golden slice. MySQL must use the active Laravel migration and Eloquent model set; the old PostgreSQL migration is not an authority.
 
-## Public Catalogue
+## Admin Operations
 
-- [x] Published, requestable workers appear in the public catalogue.
-- [x] Draft, unpublished, archived, and non-requestable records do not appear as active inventory.
-- [x] Public API uses explicit DTOs and does not expose internal notes/private fields.
-- [x] Search, nationality/skill/availability filters, and profiles work on representative mobile/tablet/desktop layouts.
+A disposable admin can log in, receive an opaque HTTP-only session, read session state, create/update a worker, assign skills, publish/unpublish/archive, update availability, manage taxonomies/content/settings, upload or save approved media, delete owned media, and create audit records. Missing auth, insufficient roles, invalid input, unsafe media, and cross-worker media access must fail safely.
 
-## Specific-Worker WhatsApp
+## Public Behavior
 
-- [x] `اطلب هذه العاملة` opens a short form.
-- [x] Invalid input is blocked with understandable inline feedback.
-- [x] Trusted worker public code is included automatically.
-- [x] The correct URL-encoded Arabic WhatsApp message is generated.
-- [x] Destination comes from approved configuration and cannot be overridden by public input.
-- [x] No Lead record is required or created.
+Only approved public workers appear in the catalogue and profile route. Public DTOs omit internal notes, audit metadata, private media, admin identifiers, and credentials. Public settings expose only approved contact values. No customer form creates a database row.
 
-## Need-Based Matching
+## Conversion Behavior
 
-- [x] Matching landing page has the approved primary CTA `ابدأ طلب المطابقة`.
-- [x] Two-step form works with the approved fields.
-- [x] Email and budget are not required.
-- [x] Consent and required fields block incomplete submission.
-- [x] Valid answers generate a structured URL-encoded WhatsApp message.
-- [x] Catalogue browsing is not required.
-- [x] Direct/refresh access to the thank-you route shows a truthful generic restart state when no in-memory form exists.
+The specific-worker and matching forms must validate required fields, use trusted worker/configuration data, URL-encode Arabic content safely, and open a WhatsApp preview. Automated verification must not send a message or continue into WhatsApp Web. No lead, CRM, queue, booking, account, or payment endpoint may be introduced.
 
-## Analytics and Privacy
+## Release Classification
 
-- [x] Approved view, form-step, and WhatsApp-click events are emitted.
-- [x] Analytics properties exclude name, phone, email, free-text note, full message, and private worker data.
-- [x] Customer form PII is not persisted in browser storage by default.
-
-## Quality and Operations
-
-- [x] Server-side admin authorization and public mutation denial are enforced.
-- [x] Versioned migrations support status, fresh apply, idempotent rerun, checksums, advisory locking, and compatible-schema adoption.
-- [x] Liveness and database readiness endpoints are available.
-- [x] WCAG 2.2 AA browser audit has no reported violations on the audited routes.
-- [x] Lint, typecheck, unit tests, build, CI, and high-severity dependency audit pass.
-- [ ] Real S3 binary upload/public retrieval is verified with staging object storage credentials.
-- [ ] Production Secure-cookie topology is verified on a deployed HTTPS staging domain.
-
-## Final MVP Loop
-
-```text
-Admin creates worker
-→ publishes worker
-→ customer discovers worker or starts matching
-→ form validates
-→ correct WhatsApp message opens
-```
+**PASS WITH EXTERNAL HOSTING CHECKS** applies when the repository and disposable MySQL gates pass but the intended shared host has not yet verified PHP extensions, document-root isolation, HTTPS/secure cookies, production MySQL, persistent media upload/retrieval, cache/storage permissions, backups, and real domain/origin allowlisting. **PRODUCTION READY** requires all of those external checks on the authorized target.

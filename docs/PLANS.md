@@ -101,7 +101,8 @@ Must inspect:
 ```text
 ARCHITECTURE.md
 CONVENTIONS.md
-prisma/schema.prisma
+laravel-api/database/migrations
+laravel-api/app/Models
 existing migrations
 affected repository/service code
 TESTING.md
@@ -205,11 +206,11 @@ Examples:
 
 ```text
 Worker requestability → Backend domain logic
-Worker data → PostgreSQL
+Worker data → MySQL/Eloquent
 Public worker visibility → Backend query/publication rules
 Admin permissions → Server-side authorization
-Cache → Redis, never authoritative
-Files → Object storage
+Cache → Laravel/application cache, never authoritative
+Files → Laravel Filesystem or approved object storage
 ```
 
 Never implement the same business rule independently in multiple clients.
@@ -418,7 +419,7 @@ Describe what should happen after the change.
 |---|---|---|
 | Worker model | READY | Existing |
 | Reservation state | READY | `RESERVED` exists |
-| Lead-worker relation | NEEDS CHANGE | Add reservation relation |
+| Worker-skill relation | READY | `worker_skills` pivot is current |
 
 ---
 
@@ -789,22 +790,21 @@ For every critical happy path, test at least the likely failure paths.
 
 Examples:
 
-### Lead submission
-
+### WhatsApp handoff
 Happy:
-
 ```text
-Available worker + valid customer → lead created
+Valid form + trusted destination → encoded WhatsApp preview opens
 ```
 
 Failures:
-
 ```text
 Unavailable worker
-Invalid phone
-Duplicate accidental submission
-DB error
-Notification provider error
+Invalid phone or missing consent
+Missing trusted destination
+Duplicate accidental click
+No customer record is created
+API/configuration error
+Browser navigation error
 ```
 
 ---
@@ -840,7 +840,7 @@ Examples:
 | Test policy | `TESTING.md` |
 | Acceptance behavior | `ACCEPTANCE_CRITERIA.md` |
 | Agent rules | `AGENTS.md` |
-| PostgreSQL schema | `db/migrations` SQL + `lib/db/schema` declarations |
+| MySQL schema | `laravel-api/database/migrations` + Eloquent models |
 
 Documentation must describe reality, not future intention.
 
@@ -1180,7 +1180,7 @@ Before introducing a job:
 - Define dead/failure handling.
 - Define observability.
 
-A failed background notification must not undo a successfully persisted lead.
+A failed WhatsApp URL build must not be reported as a successful handoff; no customer request is persisted and no rollback workflow is required.
 
 ---
 

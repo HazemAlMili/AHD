@@ -48,10 +48,11 @@ The website does not need an internal CRM to complete this loop.
 
 - Implementation: **completed for the verified MVP slice**.
 - Independent QA/correction: **completed; result PASS WITH NON-BLOCKING ITEMS**.
+- Repository hardening: **completed and pushed in `82b9b97`**.
+- Configured staging verification: **completed with external blockers** using a dedicated disposable PostgreSQL/API/frontend environment; no real staging host or production data was used.
 - Documentation reconciliation: **current/next**.
 - Production readiness: **next after documentation and deployment checks**.
-- Staging: pending production-readiness work.
-- Production launch: pending staging verification.
+- Production launch: pending real staging infrastructure verification.
 
 ## 5. Current Architecture
 
@@ -322,10 +323,11 @@ These corrections are confirmed in the current code and must not regress:
 - Specific-worker form validation is inline and preserves the profile/form UI after invalid submission.
 - Admin editing retains the existing primary media and updates it rather than silently creating an unrelated duplicate.
 - Icon-only admin controls have explicit accessible names.
+- Direct/refresh access to `/match/thanks` without valid in-memory form state renders a truthful generic restart state; it does not persist PII or create a lead record.
 
 ## 21. Current QA Status
 
-Latest independent QA result: **PASS WITH NON-BLOCKING ITEMS**. Repository hardening now has a clean dependency audit, a repository-native lint command, explicit database migration/status commands, and liveness/readiness endpoints; configured staging remains pending.
+Latest QA result: **STAGING PASS WITH EXTERNAL BLOCKERS**. The dedicated disposable staging run exercised the real built API, Vite frontend, PostgreSQL migration lifecycle, admin session/RBAC, worker CRUD/publication/availability, public catalogue/profile/filtering/DTO privacy, both WhatsApp URL journeys, and the browser/axe audit. The remaining blockers are external configuration/platform items only.
 
 Verified QA evidence:
 
@@ -347,8 +349,11 @@ Verified QA evidence:
 - Real binary S3 upload has not been exercised with configured staging object storage.
 - No real outbound WhatsApp message was sent during QA; external transmission requires a controlled destination and action-time approval.
 - Vite reports an existing tooltip source-map warning during production build; the build still succeeds.
-- A staging database, object storage, controlled WhatsApp destination, and production-like browser audit are still required for configured staging verification.
+- The disposable staging database, controlled WhatsApp preview, and browser/axe audit were verified; real object storage and deployed HTTPS/domain topology remain external blockers.
 - Documentation reconciliation remains before production-readiness sign-off.
+- Real binary S3 upload/public retrieval was not available because no `AHD_S3_*` credentials or repository-local environment file existed; URL-media policy/ownership negatives passed.
+- The environment had no configured staging domain/HTTPS endpoint; cookie attributes were verified in local production mode (`HttpOnly`, `Secure`, `SameSite=Lax`, root path), but production HTTPS topology remains external.
+- Controlled WhatsApp preview URLs and Arabic messages passed for both golden journeys; no final external send was performed.
 
 ## 23. Agent Working Protocol
 
@@ -409,7 +414,7 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 26. Current Next Action
 
-**NEXT ACTION:** Complete configured staging verification using the explicit database migration lifecycle, real object storage, controlled WhatsApp destination, and the repository browser audit. Do not mark staging or documentation reconciliation complete until verified evidence exists.
+**NEXT ACTION:** Complete Task 3 final documentation reconciliation and production-readiness closure. Before production sign-off, verify the real staging domain/HTTPS topology, S3 binary upload/retrieval, and any controlled external WhatsApp transmission required by the release plan.
 
 ## 27. Memory Maintenance Rules
 

@@ -54,7 +54,9 @@ The previous Express/PostgreSQL implementation under `artifacts/api-server`, `li
 
 ## Local Setup
 
-The backend requires PHP 8.2 or newer, Composer, the `pdo_mysql`, `mbstring`, `xml`, `curl`, and `zip` extensions, and a MySQL database. The frontend remains Node 22 with pnpm 11.21.0.
+For the zero-host-runtime workflow, use the dedicated [Docker local development guide](docs/DOCKER_LOCAL_DEVELOPMENT.md). It starts the React/Vite frontend, Laravel/PHP-FPM API, Nginx same-origin gateway, and MySQL entirely through Docker Compose. Docker is local-only; production remains conventional PHP/MySQL shared hosting.
+
+The manual workflow below remains available when PHP, Composer, MySQL, Node, and pnpm are intentionally installed on the host. The backend requires PHP 8.2 or newer, Composer, the `pdo_mysql`, `mbstring`, `xml`, `curl`, and `zip` extensions, and a MySQL database. The frontend remains Node 22 with pnpm 11.21.0.
 
 ```bash
 cd laravel-api

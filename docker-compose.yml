@@ -1,0 +1,156 @@
+services:
+  mysql:
+    image: mysql:8.4
+    command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ahd}
+      MYSQL_USER: ${MYSQL_USER:-ahd}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ahd_local_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_local_only}
+    volumes:
+      - ahd_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+    networks: [ahd]
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    working_dir: /var/www/html
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${MYSQL_DATABASE:-ahd}
+      DB_USERNAME: ${MYSQL_USER:-ahd}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-ahd_local_password}
+      SESSION_DRIVER: file
+      SESSION_LIFETIME: 480
+      SESSION_DOMAIN:
+      SESSION_SECURE_COOKIE: "false"
+      SESSION_HTTP_ONLY: "true"
+      SESSION_SAME_SITE: lax
+      FILESYSTEM_DISK: public
+      FILESYSTEM_PUBLIC_URL: /storage
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: file
+      AHD_ALLOWED_ORIGINS: ${AHD_ALLOWED_ORIGINS:-http://localhost:8080}
+      AHD_ADMIN_NAME: ${AHD_ADMIN_NAME:-AHD Local Admin}
+      AHD_ADMIN_EMAIL: ${AHD_ADMIN_EMAIL:-admin@ahd.local}
+      AHD_ADMIN_PASSWORD: ${AHD_ADMIN_PASSWORD:-change-me-local-only}
+      AWS_ACCESS_KEY_ID:
+      AWS_SECRET_ACCESS_KEY:
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET:
+      AWS_ENDPOINT:
+      AWS_URL:
+      AWS_USE_PATH_STYLE_ENDPOINT: "false"
+    volumes:
+      - ./laravel-api:/var/www/html
+      - ahd_laravel_vendor:/var/www/html/vendor
+      - ahd_laravel_storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan db:show --no-interaction >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    networks: [ahd]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    working_dir: /workspace
+    environment:
+      NODE_ENV: development
+      CI: "true"
+      NPM_CONFIG_NODE_LINKER: hoisted
+      NPM_CONFIG_STORE_DIR: /pnpm/store
+      NPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
+      npm_config_node_linker: hoisted
+      npm_config_store_dir: /pnpm/store
+      npm_config_confirm_modules_purge: "false"
+      PORT: 5173
+      VITE_API_URL: /api/v1
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-false}
+    volumes:
+      - ./package.json:/workspace/package.json:ro
+      - ./pnpm-lock.yaml:/workspace/pnpm-lock.yaml:ro
+      - ./pnpm-workspace.yaml:/workspace/pnpm-workspace.yaml:ro
+      - ./docker/frontend/.npmrc:/workspace/.npmrc:ro
+      - ./tsconfig.base.json:/workspace/tsconfig.base.json:ro
+      - ./tsconfig.json:/workspace/tsconfig.json:ro
+      - ./eslint.config.mjs:/workspace/eslint.config.mjs:ro
+      - ./artifacts/khadematy-site:/workspace/artifacts/khadematy-site
+      - ./artifacts/api-server:/workspace/artifacts/api-server
+      - ./artifacts/mockup-sandbox:/workspace/artifacts/mockup-sandbox
+      - ./lib:/workspace/lib
+      - ./scripts:/workspace/scripts
+    command: ["node", "/workspace/node_modules/vite/bin/vite.js", "--config", "/workspace/artifacts/khadematy-site/vite.config.ts", "--host", "0.0.0.0"]
+    restart: unless-stopped
+    networks: [ahd]
+
+  web:
+    image: nginx:1.27-alpine
+    ports:
+      - "${AHD_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ahd_laravel_storage:/var/www/html/storage:ro
+    depends_on:
+      app:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/api/readyz | grep -q '\"status\":\"ready\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks: [ahd]
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    profiles: [tools]
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: ${MYSQL_USER:-ahd}
+      PMA_PASSWORD: ${MYSQL_PASSWORD:-ahd_local_password}
+      UPLOAD_LIMIT: 32M
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [ahd]
+
+volumes:
+  ahd_mysql_data:
+    name: ahd_mysql_data
+  ahd_laravel_vendor:
+    name: ahd_laravel_vendor
+  ahd_laravel_storage:
+    name: ahd_laravel_storage
+
+networks:
+  ahd:
+    name: ahd_local_network

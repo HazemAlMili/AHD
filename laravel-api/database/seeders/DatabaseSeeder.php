@@ -11,6 +11,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! app()->environment('local', 'testing')) return;
+
         $email = trim((string) env('AHD_ADMIN_EMAIL', ''));
         $password = (string) env('AHD_ADMIN_PASSWORD', '');
         if ($email === '' || $password === '') return;

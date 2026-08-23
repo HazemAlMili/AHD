@@ -49,3 +49,12 @@ Thumbs.db
 .cache/
 .local/
 artifacts/verification/
+
+# Docker local development
+.env.docker
+.env.docker.local
+*.sql
+*.sql.gz
+laravel-api/storage/app/public/*
+!laravel-api/storage/app/public/.gitignore
+laravel-api/public/storage

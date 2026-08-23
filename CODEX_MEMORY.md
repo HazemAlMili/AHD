@@ -50,8 +50,8 @@ The website does not need an internal CRM to complete this loop.
 - Independent QA/correction and repository hardening: **completed and pushed**.
 - Laravel/MySQL architecture pivot: **implemented and verified against disposable MySQL**; the React/Vite UI remains unchanged.
 - Backend parity: **verified** for health/readiness, auth/session/RBAC, worker/taxonomy/content/settings/media operations, transactions, public DTO privacy, and both WhatsApp journeys.
-- Documentation reconciliation: **in progress for the Laravel/MySQL pivot**; canonical docs are being updated before the migration closure commit.
-- Production readiness: **REPOSITORY READY WITH EXTERNAL HOSTING CHECKS**.
+- Documentation reconciliation: **completed for the Laravel/MySQL pivot and Docker-local development environment**.
+- Production readiness: **REPOSITORY READY WITH EXTERNAL HOSTING CHECKS**; Docker-local development is verified through the primary same-origin Compose URL.
 - Production deployment: **not executed** because no authorized shared-hosting/domain/S3 target or deployment credentials are available.
 - Production launch: pending authorized shared-hosting PHP/MySQL/HTTPS/storage verification.
 
@@ -314,30 +314,38 @@ These corrections are confirmed in the current code and must not regress:
 
 ## 21. Current QA Status
 
-Latest QA result: **LARAVEL/MYSQL PARITY PASS WITH EXTERNAL HOSTING CHECKS**. Disposable MySQL exercised fresh and idempotent Laravel migrations, admin session/RBAC, worker CRUD/publication/availability, taxonomy/content/settings, local media upload/ownership, public catalogue/profile/filtering/DTO privacy, both WhatsApp preview journeys, and the React admin dashboard. The remaining blockers are shared-hosting and external storage checks only.
+Latest QA result: **LARAVEL/MYSQL PARITY PASS WITH DOCKER LOCAL DEVELOPMENT PASS AND EXTERNAL HOSTING CHECKS REMAINING**. Disposable MySQL exercised fresh and idempotent Laravel migrations, admin session/RBAC, worker CRUD/publication/availability, taxonomy/content/settings, local media upload/ownership, public catalogue/profile/filtering/DTO privacy, both WhatsApp preview journeys, and the React admin dashboard. The Docker Compose stack additionally passed clean-volume initialization, same-origin Nginx routing, Vite HMR WebSocket upgrade, containerized Laravel/PHP and frontend quality gates, normal restart persistence, and Docker-local public media retrieval. The remaining blockers are shared-hosting and external storage checks only.
 
 Verified QA evidence:
 
 - Fresh and idempotent disposable MySQL migration passed; `php artisan migrate:status` reports the active schema applied.
-- Laravel feature suite: 6 tests / 48 assertions passed, including auth, CRUD, content/settings, media upload/ownership, privacy, and audit.
+- Laravel feature suite: 4 tests / 46 assertions passed in the current cleaned suite, including auth, CRUD, content/settings, media upload/ownership, privacy, and audit.
 - Golden admin slice passed: login → list/create/update/archive worker → public catalogue propagation.
 - Public profile and matching form browser previews passed with Arabic messages; no external message was sent.
 - React shared unit suite: 7/7 passed; TypeScript typecheck and production build passed.
 - Laravel PHP syntax and API route inspection passed.
 - Production dependency audit: no known vulnerabilities in the Node dependency graph.
-- Repository lint passes with seven known non-fatal Fast Refresh warnings; Laravel vendor assets are excluded from root JavaScript lint and verified with PHP-specific checks.
+- Repository lint passes with seven known non-fatal Fast Refresh warnings; the same lint/typecheck/test/build source gates were executed inside Docker using image-installed binaries because pnpm 11 may attempt unnecessary workspace reconciliation under bind mounts.
 - Existing React visual/RTL behavior was preserved; no UI redesign was introduced.
 
-## 22. Known External Checks
+## 22. Docker-Local Development
+
+- Full local development environment is available through `docker-compose.yml` with `web`, `frontend`, `app`, and `mysql`; `phpmyadmin` is optional under the `tools` profile.
+- Primary local URL: `http://localhost:8080`; `/`, `/admin`, `/api/*`, and `/storage/*` are served through one Nginx origin.
+- MySQL persists in the named `ahd_mysql_data` volume; Laravel public media persists in `ahd_laravel_storage`. `docker compose down` preserves volumes; `docker compose down -v` is the explicit disposable reset.
+- Local admin bootstrap is idempotent and environment-guarded through `DatabaseSeeder`, using Docker-local `AHD_ADMIN_*` values; no local password is stored in memory or source control.
+- Docker startup runs Laravel migrations and the frontend uses an image-cached Node/pnpm/Vite toolchain with editable source mounts and Vite HMR. Production remains conventional shared PHP hosting with React static assets and MySQL, not Docker.
+
+## 23. Known External Checks
 
 - Real shared-hosting deployment has not been exercised; PHP version/extensions, document-root isolation, writable directories, and cache/storage permissions remain host checks.
 - Real production-like HTTPS/domain topology has not been exercised; secure-cookie behavior and credentialed CORS must be verified on the intended host.
 - Real S3-compatible binary upload/public retrieval has not been exercised; local/public-disk upload passed on disposable MySQL.
 - No real outbound WhatsApp message was sent; controlled preview URLs and Arabic messages passed for both golden journeys.
 - Vite reports the existing tooltip source-map warning during production build; the build succeeds.
-- Synthetic MySQL/admin/worker fixtures are disposable and must be removed before any production classification.
+- Synthetic MySQL/admin/worker fixtures are disposable and were removed by the final clean-volume Docker reset; they must remain absent from any production classification.
 
-## 23. Agent Working Protocol
+## 24. Agent Working Protocol
 
 For every substantial task:
 
@@ -365,7 +373,7 @@ Retry discipline:
 - Second failure: challenge assumptions and inspect adjacent contracts/configuration.
 - Before a third speculative attempt: reproduce minimally and establish root cause.
 
-## 24. Golden Vertical Slices
+## 25. Golden Vertical Slices
 
 Protect these business proofs:
 
@@ -390,19 +398,19 @@ Paid Transfer LP
 
 MVP success means staff can manage inventory without code changes and a customer can discover/request a worker or submit household matching needs and continue through a correct WhatsApp handoff.
 
-## 25. Future Scope Rule
+## 26. Future Scope Rule
 
 Future features are not permanently forbidden. CRM, queues, Redis, dedicated search, automation, payments, and official integrations may be introduced only after a real operational need, product decision, measured data, or explicit new requirement. Treat each as a deliberate scope/architecture change with security, data-model, migration, and acceptance review.
 
-## 26. Current Next Action
+## 27. Current Next Action
 
 **NEXT ACTION:** Provide or authorize one conventional shared-hosting target with its domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then deploy `laravel-api` and run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope.
 
-## 27. Architecture Pivot State
+## 28. Architecture Pivot State
 
 The Laravel/MySQL architecture pivot was approved, implemented, tested, and browser-verified without changing the React UI or product scope. The old Express/PostgreSQL implementation is preserved as rollback/reference material and is no longer current production authority. No authorized shared-hosting target, production domain, or S3-compatible credentials are available, so no external deployment was attempted and no production data was touched. Once supplied, verify PHP/extension/document-root behavior, MySQL readiness, persistent media upload/public retrieval, HTTPS/CORS/Secure-cookie behavior, backups/restore, and the post-deploy golden slice.
 
-## 28. Memory Maintenance Rules
+## 29. Memory Maintenance Rules
 
 - Keep this as the one canonical project-memory document: `CODEX_MEMORY.md`.
 - Update only when durable product scope, architecture, data model, workflow, source-of-truth, major integration, QA discovery, or project stage changes.

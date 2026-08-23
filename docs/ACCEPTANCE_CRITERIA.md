@@ -1,51 +1,65 @@
 # AHD Acceptance Criteria
 
-**Version:** 3.0
+**Version:** 4.0 — Final MVP Closure Criteria
+
+The criteria below describe the current product behavior. The repository-controlled criteria were verified in the disposable staging run; real object storage and deployed HTTPS remain environment-dependent gates.
 
 ## Admin
-- [ ] Worker CRUD works.
-- [ ] Nationality/country CRUD works.
-- [ ] Skill CRUD works.
-- [ ] Admin can publish/unpublish/archive.
-- [ ] Admin can configure WhatsApp/public contact settings.
-- [ ] Public output updates without code deployment.
+
+- [x] Authorized admin can log in and maintain a session.
+- [x] Worker CRUD, nationality CRUD, and skill CRUD work through the protected API.
+- [x] Admin can publish, unpublish, archive, change availability, feature/order, and manage approved media.
+- [x] Admin can configure WhatsApp/public contact settings and public content.
+- [x] Public output updates from admin-managed data without source-code changes.
 
 ## Public Catalogue
-- [ ] Published workers appear.
-- [ ] Draft/archived workers do not appear as active inventory.
-- [ ] Public API never exposes internal notes/private data.
-- [ ] Search/filters and profiles work on mobile.
 
-## Specific Worker WhatsApp
-- [ ] `اطلب هذه العاملة` opens a small form.
-- [ ] Form validates.
-- [ ] Worker public code is included automatically.
-- [ ] Correct WhatsApp URL is generated.
-- [ ] Destination number is config-driven.
-- [ ] No Lead record is required.
+- [x] Published, requestable workers appear in the public catalogue.
+- [x] Draft, unpublished, archived, and non-requestable records do not appear as active inventory.
+- [x] Public API uses explicit DTOs and does not expose internal notes/private fields.
+- [x] Search, nationality/skill/availability filters, and profiles work on representative mobile/tablet/desktop layouts.
 
-## Paid Matching LP
-- [ ] One dominant CTA: `ابدأ طلب المطابقة`.
-- [ ] Two-step form works.
-- [ ] Email/budget are not required.
-- [ ] Valid answers generate a structured WhatsApp message.
-- [ ] Catalogue browsing is not required.
+## Specific-Worker WhatsApp
 
-## Analytics
-- [ ] Views/form steps/WhatsApp clicks are tracked.
-- [ ] PII is not sent to analytics.
+- [x] `اطلب هذه العاملة` opens a short form.
+- [x] Invalid input is blocked with understandable inline feedback.
+- [x] Trusted worker public code is included automatically.
+- [x] The correct URL-encoded Arabic WhatsApp message is generated.
+- [x] Destination comes from approved configuration and cannot be overridden by public input.
+- [x] No Lead record is required or created.
 
-## Quality
-- [ ] Server-side admin authorization.
-- [ ] WCAG 2.2 AA baseline.
-- [ ] Optimized images/minimal JS.
-- [ ] Horizontal web/API scaling remains possible.
+## Need-Based Matching
 
-## Final MVP
+- [x] Matching landing page has the approved primary CTA `ابدأ طلب المطابقة`.
+- [x] Two-step form works with the approved fields.
+- [x] Email and budget are not required.
+- [x] Consent and required fields block incomplete submission.
+- [x] Valid answers generate a structured URL-encoded WhatsApp message.
+- [x] Catalogue browsing is not required.
+- [x] Direct/refresh access to the thank-you route shows a truthful generic restart state when no in-memory form exists.
+
+## Analytics and Privacy
+
+- [x] Approved view, form-step, and WhatsApp-click events are emitted.
+- [x] Analytics properties exclude name, phone, email, free-text note, full message, and private worker data.
+- [x] Customer form PII is not persisted in browser storage by default.
+
+## Quality and Operations
+
+- [x] Server-side admin authorization and public mutation denial are enforced.
+- [x] Versioned migrations support status, fresh apply, idempotent rerun, checksums, advisory locking, and compatible-schema adoption.
+- [x] Liveness and database readiness endpoints are available.
+- [x] WCAG 2.2 AA browser audit has no reported violations on the audited routes.
+- [x] Lint, typecheck, unit tests, build, CI, and high-severity dependency audit pass.
+- [ ] Real S3 binary upload/public retrieval is verified with staging object storage credentials.
+- [ ] Production Secure-cookie topology is verified on a deployed HTTPS staging domain.
+
+## Final MVP Loop
+
 ```text
 Admin creates worker
-→ publishes
-→ customer discovers or matches
+→ publishes worker
+→ customer discovers worker or starts matching
 → form validates
 → correct WhatsApp message opens
 ```

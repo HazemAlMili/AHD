@@ -840,7 +840,7 @@ Examples:
 | Test policy | `TESTING.md` |
 | Acceptance behavior | `ACCEPTANCE_CRITERIA.md` |
 | Agent rules | `AGENTS.md` |
-| Prisma model | schema + migrations |
+| PostgreSQL schema | `db/migrations` SQL + `lib/db/schema` declarations |
 
 Documentation must describe reality, not future intention.
 
@@ -1054,12 +1054,11 @@ Similarly:
 
 ```text
 Worker request
-→ Lead persistence
-→ Admin visibility
+→ validated WhatsApp handoff
 → Test
 ```
 
-before adding advanced CRM automation.
+before adding advanced CRM automation or request persistence.
 
 ---
 
@@ -1457,10 +1456,10 @@ For operationally important behavior, define how failure will be detected.
 Examples:
 
 ```text
-Lead submission:
+WhatsApp handoff:
 - API error rate
-- lead creation success
-- queue failure count
+- WhatsApp URL construction success
+- click-through event count
 
 Worker publication:
 - publish error rate
@@ -1711,7 +1710,7 @@ Admin CRUD
 → WhatsApp
 ```
 
-Do not introduce custom Lead/CRM persistence, lead assignment, status history, follow-up scheduling, Redis/BullMQ for request handling, or backend public-form persistence unless a newer approved requirement explicitly requires it.
+Do not introduce custom CRM/request persistence, lead assignment, status history, follow-up scheduling, Redis/BullMQ for request handling, or backend public-form persistence unless a newer approved requirement explicitly requires it.
 
 If such a change is requested later, treat it as a HIGH-risk architecture/scope change and plan it explicitly.
 

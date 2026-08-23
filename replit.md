@@ -1,45 +1,7 @@
-# [Project name]
+# Historical Scaffold Notice
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+This file is a **HISTORICAL / NON-CANONICAL** Replit-derived scaffold note. It is retained for provenance and must not be used as the current setup, architecture, database, or API guide.
 
-## Run & Operate
+For current AHD / عهد identity, product scope, repository layout, environment, migrations, development commands, API endpoints, and quality gates, start with [`README.md`](README.md). For the preserved-artifact classification, see [`docs/HISTORICAL_ARTIFACTS.md`](docs/HISTORICAL_ARTIFACTS.md).
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
-
-## Stack
-
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
-
-## Where things live
-
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+The current runtime is React 19 + Vite + wouter + Tailwind in `artifacts/khadematy-site`, Express 5 in `artifacts/api-server`, PostgreSQL with parameterized `pg` queries, Zod validation, Drizzle declarations where applicable, and explicit SQL migrations under `db/migrations`. Do not follow the old scaffold's code-generation, schema-push, Node-version, or package-layout assumptions.

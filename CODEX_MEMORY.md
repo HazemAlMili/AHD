@@ -50,9 +50,9 @@ The website does not need an internal CRM to complete this loop.
 - Independent QA/correction: **completed; result PASS WITH NON-BLOCKING ITEMS**.
 - Repository hardening: **completed and pushed in `82b9b97`**.
 - Configured staging verification: **completed with external blockers** using a dedicated disposable PostgreSQL/API/frontend environment; no real staging host or production data was used.
-- Documentation reconciliation: **current/next**.
-- Production readiness: **next after documentation and deployment checks**.
-- Production launch: pending real staging infrastructure verification.
+- Documentation reconciliation: **completed in Task 3; canonical docs now match verified implementation**.
+- Production readiness: **PASS WITH EXTERNAL BLOCKERS** for repository-controlled scope.
+- Production launch: pending only real S3 binary/public retrieval and production-like HTTPS/domain verification where required by deployment.
 
 ## 5. Current Architecture
 
@@ -74,7 +74,7 @@ PostgreSQL (Drizzle schema + pg runtime)
 S3-compatible object-storage abstraction for worker media
 ```
 
-The TRD contains an aspirational Next.js/NestJS/Prisma stack, but the verified implementation is Vite/React + Express + Drizzle/`pg`. Do not perform a framework/ORM rewrite solely to match that older target description. Migrate only through an explicit approved decision with visual and behavioral parity.
+Historical materials contained Next.js/NestJS/Prisma assumptions, but the verified implementation is React 19/Vite/wouter/Tailwind + Express 5 + PostgreSQL parameterized `pg` queries + Drizzle declarations where applicable. Those materials are classified as historical/superseded; do not perform a framework/ORM rewrite to match them. Migrate only through an explicit approved decision with visual and behavioral parity.
 
 Database lifecycle is now explicit: version-controlled SQL lives under `db/migrations/`, and `pnpm db:migrate` / `pnpm db:status` run through the existing `pg` architecture. The migration runner uses transactional execution, a PostgreSQL advisory lock, checksums, repeatable application, and safe adoption of an existing compatible schema. `ensureSchema()` remains available for local/test bootstrap but is a no-op in production; production schema changes must happen through the migration command before traffic.
 
@@ -224,7 +224,7 @@ The current Drizzle/PostgreSQL schema is in `lib/db/src/schema/index.ts`; runtim
 
 There are no current customer, lead, booking, payment, or CRM entities. Publication and availability are represented by separate enums as listed above.
 
-No `prisma/schema.prisma` file is present in the current repository; the Drizzle schema is the implementation source of truth until an approved migration says otherwise.
+`docs/prisma/schema.prisma` exists only as a historical/superseded snapshot; it is not the runtime authority. The versioned SQL under `db/migrations` is the migration authority, with Drizzle declarations in `lib/db` used where applicable.
 
 ## 14. Security & Privacy Guardrails
 
@@ -350,10 +350,9 @@ Verified QA evidence:
 - No real outbound WhatsApp message was sent during QA; external transmission requires a controlled destination and action-time approval.
 - Vite reports an existing tooltip source-map warning during production build; the build still succeeds.
 - The disposable staging database, controlled WhatsApp preview, and browser/axe audit were verified; real object storage and deployed HTTPS/domain topology remain external blockers.
-- Documentation reconciliation remains before production-readiness sign-off.
-- Real binary S3 upload/public retrieval was not available because no `AHD_S3_*` credentials or repository-local environment file existed; URL-media policy/ownership negatives passed.
-- The environment had no configured staging domain/HTTPS endpoint; cookie attributes were verified in local production mode (`HttpOnly`, `Secure`, `SameSite=Lax`, root path), but production HTTPS topology remains external.
-- Controlled WhatsApp preview URLs and Arabic messages passed for both golden journeys; no final external send was performed.
+- Real binary S3 upload/public retrieval remains an external blocker because configured staging object storage was unavailable; URL-media policy/ownership negatives passed.
+- No production-like staging domain/HTTPS endpoint was available; local production-mode cookie attributes were verified (`HttpOnly`, `Secure`, `SameSite=Lax`, root path), but deployed HTTPS topology remains an external blocker.
+- Controlled WhatsApp preview URLs and Arabic messages passed for both golden journeys; no final external send was performed, and a real external send is not required for codebase readiness.
 
 ## 23. Agent Working Protocol
 
@@ -414,7 +413,7 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 26. Current Next Action
 
-**NEXT ACTION:** Complete Task 3 final documentation reconciliation and production-readiness closure. Before production sign-off, verify the real staging domain/HTTPS topology, S3 binary upload/retrieval, and any controlled external WhatsApp transmission required by the release plan.
+**NEXT ACTION:** Resolve the named external infrastructure blockers—real S3 binary upload/public retrieval and production-like HTTPS/domain cookie/CORS verification where required—then proceed to Production Deployment. Do not create new repository feature work for the already-passing MVP scope.
 
 ## 27. Memory Maintenance Rules
 

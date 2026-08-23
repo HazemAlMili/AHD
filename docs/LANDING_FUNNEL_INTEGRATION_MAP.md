@@ -1,45 +1,46 @@
-# Landing Funnel Integration Map
+# AHD Landing Funnel and Integration Map
 
-**Version:** 2.0 — WhatsApp Handoff
+**Version:** 3.0 — Final WhatsApp-first funnel
 
-## Final Paid Funnel
+## Main Site / Organic Path
+
+```text
+Homepage / SEO
+→ public worker catalogue
+→ worker profile
+→ small validated specific-worker form
+→ structured WhatsApp URL
+→ AHD WhatsApp
+→ sales / operations
+→ official process outside the website
+```
+
+The catalogue and profile are backed by the public API. Only published and requestable workers are presented as active inventory. The worker’s public AHD reference is taken from API data and included in the message.
+
+## Paid / Search Path
+
 ```text
 Google Search
-→ Transfer Landing Page
-→ Need-Based Matching Form
-→ WhatsApp
-→ Sales / Operations
-→ Official Process
+→ transfer landing page
+→ need-based matching CTA
+→ Step 1: household need
+→ Step 2: contact/readiness/consent
+→ structured WhatsApp URL
+→ AHD WhatsApp
+→ sales / operations
+→ official process outside the website
 ```
 
-## Main Website
-```text
-Homepage/SEO
-→ Worker Catalogue
-→ Worker Profile
-→ Small Form
-→ WhatsApp
-```
+The matching form uses temporary frontend state, shared validation, a pure message builder, and a configured WhatsApp destination. The website does not persist a matching request.
 
-## Removed from MVP
-- persistent MATCHING_REQUEST backend record
-- custom CRM pipeline
-- lead assignment/status history
-- follow-up scheduler
-- queue-based lead notifications
+## Integration Boundaries
 
-## Kept
-- Need-Based Matching
-- two-step form
-- one primary CTA
-- worker catalogue
-- admin CRUD
-- WhatsApp conversion
-- analytics/mobile/CRO/accessibility
+The active boundaries are the Express public/admin API, PostgreSQL, optional S3-compatible worker media, non-PII analytics events, and the configured WhatsApp URL handoff. No CRM, persistent `MATCHING_REQUEST`, lead assignment/status history, follow-up scheduler, queue notification, or customer account is part of the current funnel.
 
 ## Analytics
-Track views, form steps, and WhatsApp clicks without PII.
 
-Completed-transfer attribution can be manual initially.
+Measure catalogue/profile views, form starts, step completion, phone clicks, and WhatsApp clicks without customer name, phone, email, free-text note, full message, or private worker data. Completed-transfer attribution is manual initially.
 
-A CRM becomes a separate future project only when reliable source-to-sale attribution, multi-agent ownership, automation, or SLA reporting is actually needed.
+## Future Boundary
+
+CRM or automated messaging may become a separate future project only after an explicit product decision, operational need, data-retention review, and security/threat-model review. It is not a missing implementation task for the current MVP.

@@ -1,251 +1,104 @@
 # AHD (عهد) — Technical Requirements Document
 
-**Version:** 2.0 — Simplified CRUD + WhatsApp MVP
+**Version:** 3.0 — Verified React/Vite + Express + PostgreSQL MVP
 
 ## 1. Objective
-Build:
-- public Next.js website
-- admin Next.js backoffice
-- NestJS REST API
-- PostgreSQL/Prisma catalogue
-- object storage for media
-- client-side WhatsApp form handoff
-- basic analytics
 
-Do not build a custom CRM in MVP.
+The system provides a public React/Vite website, a protected admin interface, and an Express API backed by PostgreSQL. Customers discover approved worker information or describe a household need; the frontend validates a short form and opens a structured WhatsApp URL. Sales and operations continue outside the website.
 
-## 2. Stack
-- Next.js + React + TypeScript
-- Tailwind CSS + accessible UI primitives
-- NestJS + REST/OpenAPI
-- PostgreSQL + Prisma
-- S3-compatible object storage
-- PostHog/equivalent analytics
-- Sentry
-- Playwright + axe
-- pnpm + Turborepo
-- Docker + GitHub Actions
+## 2. Verified Stack
 
-Redis/BullMQ are deferred until a real need appears.
+| Concern | Current implementation |
+|---|---|
+| Public/admin UI | React 19, TypeScript, Vite, wouter, Tailwind CSS, Lucide primitives |
+| HTTP API | Express 5 |
+| Validation | Zod, including shared `lib/api-zod` domain utilities |
+| Database | PostgreSQL, parameterized `pg` repository queries |
+| Schema declarations | Drizzle schema/type declarations in `lib/db` where applicable |
+| Migrations | Versioned SQL in `db/migrations`, executed through `pnpm db:migrate` and inspected with `pnpm db:status` |
+| Authentication | scrypt password verification, opaque session token, SHA-256 token hash, HTTP-only cookie |
+| Media | S3-compatible presigned uploads with type/size, HTTPS, public-URL, and worker-ownership controls |
+| Quality | ESLint, TypeScript, Node tests, production builds, dependency audit, GitHub Actions, browser/axe audit |
 
-## 3. Architecture
+The historical Prisma/NestJS/Next.js description is superseded and is not the current runtime architecture. `docs/prisma/schema.prisma` is retained only as a historical reference.
+
+## 3. Conceptual Architecture
+
 ```text
-Public Next.js
-  ├─ GET catalogue/content/settings from API
-  └─ validate form → build WhatsApp URL → open WhatsApp
-          │
-NestJS API
-          │
-PostgreSQL + Object Storage
+Public React/Vite App
+        │
+        ▼
+Express Public Read API
+        │
+        ▼
+PostgreSQL
 
-Admin Next.js
-          │
-same NestJS API
+Admin React/Vite Interface
+        │
+        ▼
+Protected Express Admin API
+        │
+        ▼
+PostgreSQL
+
+Approved Worker Media → S3-Compatible Object Storage
+
+Customer Forms → Zod validation → non-PII event → WhatsApp URL
 ```
 
-## 4. MVP Backend Modules
+PostgreSQL is the business source of truth. Public and admin surfaces share the API but use separate route and authorization boundaries. Customer request forms remain temporary frontend state; they are not persisted as leads. The API and frontend are stateless with respect to customer submissions.
+
+## 4. Database Lifecycle
+
+Production traffic must run only against a migrated schema. The migration runner loads versioned SQL, applies each migration transactionally, records a SHA-256 checksum, uses an advisory lock, supports safe idempotent reruns, and can adopt a compatible existing schema. Deployment order is:
+
 ```text
-AuthModule
-AdminUsersModule
-WorkersModule
-NationalitiesModule
-SkillsModule
-MediaModule
-ContentModule
-SettingsModule
-AuditModule
+configure DATABASE_URL
+→ pnpm db:status
+→ pnpm db:migrate
+→ start API traffic
 ```
 
-Future only if needed:
-`SearchModule, LeadsModule, NotificationsModule, IntegrationsModule`
+Request-time schema creation is retained only as a local-development/test convenience where explicitly enabled; it is not the production lifecycle.
 
-## 5. Core DB Entities
+## 5. Domain Model
+
+The active database entities are admin users, workers, nationalities, skills, worker-skill relations, worker media, content blocks, system settings, audit logs, and migration metadata. There is no active Lead, CRM, queue, or matching-request persistence model.
+
+Workers use publication states `DRAFT`, `PUBLISHED`, and `ARCHIVED`. Availability states are `AVAILABLE`, `ON_HOLD`, `RESERVED`, `TRANSFER_IN_PROGRESS`, `TRANSFERRED`, and `UNAVAILABLE`. Public requestability is derived from the backend’s publication and availability rules.
+
+## 6. Validation and Handoff
+
+The backend is authoritative for admin CRUD, publication, availability, permissions, and public DTO projection. The frontend uses shared Zod schemas to decide whether a local WhatsApp form is ready to open the handoff. Pure helpers build worker and matching messages and normalize the trusted destination before URL encoding.
+
 ```text
-AdminUser
-Worker
-Nationality
-Skill
-WorkerSkill
-WorkerMedia
-ContentBlock
-SystemSetting
-AuditLog
-```
-
-No Lead/CRM tables in MVP.
-
-## 6. Public API
-```http
-GET /api/v1/workers
-GET /api/v1/workers/:slug
-GET /api/v1/nationalities
-GET /api/v1/skills
-GET /api/v1/content/:key
-GET /api/v1/public-settings
-```
-
-Public settings can expose approved contact values such as WhatsApp number.
-
-## 7. Admin API
-```http
-GET/POST/PATCH /api/v1/admin/workers
-POST /api/v1/admin/workers/:id/publish
-POST /api/v1/admin/workers/:id/unpublish
-POST /api/v1/admin/workers/:id/archive
-PATCH /api/v1/admin/workers/:id/availability
-
-GET/POST/PATCH /api/v1/admin/nationalities
-GET/POST/PATCH /api/v1/admin/skills
-GET/PATCH /api/v1/admin/content/:key
-GET/PATCH /api/v1/admin/settings/:key
-```
-
-## 8. WhatsApp Architecture
-No public `POST /leads` is required.
-
-Flow:
-```text
-Form local state
+temporary form state
 → shared validation
-→ reusable message builder
+→ pure message builder
 → non-PII analytics event
-→ URL encode
-→ open configured WhatsApp destination
+→ encoded configured WhatsApp URL
 ```
 
-Do not persist form PII in localStorage/sessionStorage by default.
+No public request endpoint such as `POST /leads` or `POST /leads/matching` exists in the current MVP.
 
-## 9. WhatsApp Builders
-Create reusable tested utilities:
-```text
-buildWorkerRequestMessage()
-buildMatchingRequestMessage()
-buildWhatsAppUrl()
-```
+## 7. Media
 
-Specific-worker request uses worker public code from trusted API data.
+The admin API supports URL media and S3-compatible presigned upload preparation. Binary uploads are constrained by approved MIME types and size limits. Public media must use approved HTTPS/public URLs. Media update/delete operations verify that the media belongs to the requested worker.
 
-Matching request uses:
-- city
-- urgency
-- needs[]
-- language optional
-- Saudi-experience preference optional
-- nationality preference optional/approved
-- readiness
-- name
-- mobile if required
+## 8. Analytics
 
-## 10. Worker Rules
-Publication:
-`DRAFT | PUBLISHED | ARCHIVED`
+Current event names include `worker_listing_viewed`, `worker_profile_viewed`, `worker_request_started`, `worker_whatsapp_clicked`, `transfer_lp_viewed`, `matching_cta_clicked`, `matching_form_started`, `matching_step_1_completed`, `matching_step_2_completed`, `matching_whatsapp_clicked`, and `phone_clicked`. Properties may contain approved public worker references or safe counts, but never customer name, phone, email, free-text note, full message, or private worker data.
 
-Availability:
-`AVAILABLE | ON_HOLD | RESERVED | TRANSFER_IN_PROGRESS | TRANSFERRED | UNAVAILABLE`
+## 9. Security and Operations
 
-Request CTA enabled only when published + available.
+Admin routes require an authenticated session and role enforcement. Public DTOs are explicit projections. SQL is parameterized. Zod validates admin and public inputs. CORS uses an explicit origin allowlist with credential support where configured. Production cookies are HTTP-only and use secure deployment settings. The configured WhatsApp destination is trusted application data, not a public query-parameter override.
 
-## 11. Validation
-Shared schemas in `packages/validation`.
+Liveness is `GET /api/healthz` and is dependency-light. Readiness is `GET /api/readyz` and verifies database/migration readiness. Environment-dependent production checks still require a real HTTPS staging topology and configured object storage.
 
-Backend remains authoritative for CRUD.
-Client validation is authoritative only for whether the local WhatsApp form is ready to open WhatsApp.
+## 10. Quality Requirements
 
-## 12. Analytics
-Events:
-```text
-worker_listing_viewed
-worker_profile_viewed
-worker_request_started
-worker_whatsapp_clicked
-transfer_lp_viewed
-matching_cta_clicked
-matching_form_started
-matching_step_1_completed
-matching_step_2_completed
-matching_whatsapp_clicked
-phone_clicked
-```
+Every change must preserve the repository gates: lint, typecheck, unit tests, build, dependency audit, and CI. Browser verification uses the repository axe/layout audit where a CDP session is available. The target is WCAG 2.2 AA for public catalogue/profile/forms, matching, and admin CRUD.
 
-Never send name, phone, free-text note, or private worker data to analytics.
+## 11. Scale Boundaries
 
-## 13. Security
-- secure admin sessions
-- server-side RBAC
-- safe file uploads
-- explicit public DTOs
-- trusted configurable WhatsApp number
-- URL-encode message
-- never allow public query params to override WhatsApp destination
-- no PII analytics
-
-## 14. Content
-Admin can manage structured homepage/LP/FAQ/contact content.
-
-No arbitrary script injection.
-
-## 15. Search
-Start with PostgreSQL filtering/indexes.
-Use pg_trgm only if needed.
-No dedicated search engine in MVP.
-
-## 16. Caching
-Start without Redis cache unless measured need appears.
-Use CDN and Next.js revalidation where safe.
-Status/publication updates must invalidate relevant public content.
-
-## 17. Performance
-- Server Components by default
-- minimal hydration
-- optimized responsive images
-- no heavy autoplay media
-- limited third-party scripts
-- lightweight forms
-
-## 18. Accessibility
-Target WCAG 2.2 AA for catalogue, profile, filters, WhatsApp forms, FAQ, and admin CRUD.
-
-## 19. Scaling
-Keep web/API stateless.
-Use object storage/CDN.
-Use DB connection pooling in scalable production.
-Scale DB through indexes/query optimization/stronger tiers/read replicas before sharding.
-Add Redis/queues/CRM only when justified.
-
-## 20. Testing
-Unit:
-- publication/requestability
-- validation
-- WhatsApp builders
-- permissions
-
-Integration:
-- CRUD
-- taxonomy relations
-- settings
-- public DTO privacy
-
-E2E:
-```text
-Admin creates/publishes worker
-→ worker appears publicly
-
-Worker profile
-→ form
-→ correct WhatsApp URL
-
-Paid LP
-→ Step 1
-→ Step 2
-→ correct WhatsApp URL
-```
-
-## 21. Technical Acceptance
-- Admin CRUD works
-- catalogue is DB-driven
-- public settings configure WhatsApp
-- no custom CRM required
-- correct message generation
-- no PII in analytics
-- mobile/accessibility/performance baseline passes
-- horizontal scaling remains possible
+The current system is a stateless web/API application backed by PostgreSQL and object storage. Start with PostgreSQL filtering and indexes, CDN/object storage, and connection-pool-aware deployment. Redis, queues, CRM, dedicated search, microservices, Kafka, Kubernetes, or framework migration are not required unless a measured operational requirement creates a separate approved architecture change.

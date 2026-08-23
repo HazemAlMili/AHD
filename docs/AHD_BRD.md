@@ -1,252 +1,75 @@
 # AHD (عهد) — Business Requirements Document
 
-**Version:** 5.0 — Simplified CRUD + WhatsApp MVP
-**Business Model:** Domestic Worker Discovery & WhatsApp Request Platform
-**Primary Market:** Saudi Arabia
+**Version:** 6.0 — Final Simplified CRUD + WhatsApp MVP
+**Business model:** Domestic-worker discovery and sponsorship/service-transfer request platform
+**Primary market:** Saudi Arabia
 
-## 1. Business Model
-AHD lets the business manage domestic-worker inventory and lets customers start a structured WhatsApp conversation about a specific worker or household need.
+## 1. Business Objective
 
-Core loop:
-
-```text
-Admin CRUD
-→ Public Catalogue / Matching LP
-→ Simple Form
-→ WhatsApp
-→ Sales / Operations
-→ Approved Official Transfer Process
-```
-
-The MVP intentionally does not include a custom CRM.
-
-## 2. Admin Requirements
-Admin Dashboard is mandatory.
-
-Core navigation:
-```text
-Dashboard
-Workers
-Nationalities / Countries
-Skills
-Content
-Settings
-```
-
-Admin can create/read/update/archive workers, publish/unpublish, change availability, upload media, feature/reorder, and manage classifications.
-
-Admin also manages:
-- nationalities/countries
-- skills
-- public content/FAQ where appropriate
-- business WhatsApp number
-- public phone/contact details
-
-No operational catalogue data should require source-code modification.
-
-## 3. Worker Data
-Recommended:
-- internal ID
-- public code/reference
-- display name
-- nationality/country
-- age if approved
-- city
-- experience
-- Saudi experience
-- skills
-- languages
-- salary/transfer amount if approved
-- public description
-- image/gallery
-- availability
-- publication
-- featured/order
-- internal notes
-
-Availability:
-`AVAILABLE, ON_HOLD, RESERVED, TRANSFER_IN_PROGRESS, TRANSFERRED, UNAVAILABLE`
-
-Publication:
-`DRAFT, PUBLISHED, ARCHIVED`
-
-## 4. Public Catalogue
-Public website supports:
-- worker listing
-- worker profile
-- search
-- nationality/country filter
-- skill filter
-- availability filter
-- experience indicators
-
-Only approved public data is exposed.
-
-## 5. Specific Worker Conversion
-Flow:
+AHD enables the business to maintain domestic-worker inventory and enables customers to begin a structured conversation about either a specific worker or a household need. The website supports discovery, qualification, and handoff; sales and operations continue outside the website through the configured business WhatsApp channel and the approved official process.
 
 ```text
-Worker Profile
-→ اطلب هذه العاملة
-→ Small Form
-→ Structured WhatsApp Message
-→ WhatsApp
+Admin manages inventory
+→ customer discovers a published worker OR describes a household need
+→ short form validates
+→ WhatsApp conversation starts
+→ sales / operations continue manually
 ```
 
-Suggested form:
-- name
-- city
-- mobile if useful
-- optional note
+The MVP is intentionally not a CRM and does not require customer request persistence.
 
-The selected worker code/name is attached automatically.
+## 2. Admin Business Requirements
 
-No Lead record is required in the website backend.
+An authorized operations user must be able to manage workers, nationalities/countries, skills, public content/FAQ blocks, and public contact settings without source-code changes to operational catalogue data. Worker operations include creating and editing drafts, publishing and unpublishing, archiving, changing availability, ordering/featuring, and managing approved media.
 
-## 6. Paid Matching Landing Page
-Paid funnel:
+The business WhatsApp number and public phone/contact values must be configurable by authorized administration. Important operational changes must be auditable.
+
+## 3. Public Discovery Requirements
+
+Customers must be able to browse published worker profiles, search, filter by approved nationality/skill/availability dimensions, and view only approved public information. Draft, unpublished, archived, and otherwise non-requestable records must not appear as active public inventory.
+
+## 4. Specific-Worker Conversion
+
+The public journey is:
 
 ```text
-Google Search
-→ Transfer LP
-→ ابدأ طلب المطابقة
-→ Two-Step Matching Form
-→ WhatsApp
+Worker profile → اطلب هذه العاملة → short form → structured WhatsApp message → WhatsApp
 ```
 
-The page is Need-Based Matching first and does not require catalogue browsing.
+The form may collect name, city, mobile number, and an optional note. The selected worker’s public reference must be inserted automatically from trusted application data. The website does not create a lead record.
 
-Structure:
+## 5. Need-Based Matching
+
+The paid/search landing page is matching-first:
+
 ```text
-Minimal Header
-→ Hero
-→ Trust
-→ Problem
-→ Transfer vs Recruitment Context
-→ Need-Based Matching
-→ Need Categories
-→ Process
-→ What You Get
-→ Pricing Explanation
-→ Trust/Proof
-→ For / Not For
-→ FAQ
-→ Matching Form
-→ Final CTA
+Google Search → transfer landing page → ابدأ طلب المطابقة → two-step form → WhatsApp
 ```
 
-Primary CTA:
-**ابدأ طلب المطابقة**
+Step 1 asks for city, urgency, household needs, optional language preference, and optional Saudi-experience preference. Step 2 asks for name, mobile number, optional nationality preference, readiness, and privacy/consent acknowledgement. Email and budget are not required in the current MVP. The customer request is not stored by the website.
 
-## 7. Matching Form
-Step 1:
-- city
-- urgency
-- household needs
-- language optional
-- previous Saudi experience preference optional
+## 6. WhatsApp Handoff
 
-Step 2:
-- name
-- mobile if required
-- nationality preference optional and approval-dependent
-- readiness
-- privacy/consent acknowledgement
+After valid input, the website composes a structured Arabic message, URL-encodes it, and opens the configured business WhatsApp destination. The specific-worker message includes the trusted public worker reference. The matching message includes the structured qualification answers. The destination is configuration-driven and cannot be overridden by public input.
 
-V1:
-- no mandatory email
-- no budget field
+## 7. Measurement
 
-## 8. WhatsApp Handoff
-After valid input, the website creates a prefilled WhatsApp message and opens the configured business WhatsApp number.
+Business conversion is measured as a WhatsApp conversation initiated. The application may track listing/profile views, landing-page and matching CTA events, form starts, step completion, worker WhatsApp clicks, matching WhatsApp clicks, and phone clicks. Analytics must not contain customer name, phone, email, free-text note, full message, or private worker data.
 
-The number must be admin/configuration-driven.
+## 8. Trust Requirements
 
-Specific-worker message includes worker public reference.
+Public business copy must not publish unverified licenses, government affiliation, guarantees, response times, pricing, reviews, statistics, trial/return policies, or transfer outcomes. The experience must distinguish initial discovery and conversation from official approval or completed transfer.
 
-Matching message includes structured qualification answers.
+## 9. MVP Acceptance Loop
 
-## 9. Conversion Metrics
-Primary MVP conversion:
-**WhatsApp Conversation Initiated**
-
-Track separately:
-- Worker WhatsApp click
-- Matching WhatsApp click
-
-Website funnel metrics:
-- page/LP view
-- CTA click
-- form start
-- Step 1 completion
-- Step 2 completion
-- WhatsApp click
-- mobile drop-off
-
-Completed transfer can initially be reconciled manually by sales/operations.
-
-## 10. Main Website vs Paid LP
-Main website:
-- brand/SEO
-- catalogue
-- profiles
-- specific-worker WhatsApp
-
-Paid LP:
-- message match
-- qualification
-- matching WhatsApp
-
-## 11. Trust / Compliance
-Do not publish unverified:
-- license wording
-- government affiliation
-- guarantees
-- response times
-- pricing claims
-- reviews/statistics
-- trial/return policy
-- failed-transfer policy
-
-## 12. MVP Scope
-Public:
-- homepage
-- paid transfer LP
-- catalogue
-- worker profile
-- search/filters
-- two simple request forms
-- WhatsApp handoff
-- FAQ/legal/contact
-- analytics
-
-Admin:
-- auth
-- Worker CRUD
-- nationality/country CRUD
-- skill CRUD
-- media
-- publish/status
-- content/settings
-- basic audit/permissions
-
-## 13. Out of Scope
-- custom CRM
-- lead assignment/status history
-- follow-up scheduler
-- customer accounts
-- payments
-- bookings/calendars
-- automated WhatsApp Business messaging
-- official government API integration
-- Redis/BullMQ solely for request handling
-
-## 14. MVP Success
 ```text
 Admin creates worker
-→ publishes
-→ worker appears
-→ customer requests worker OR uses matching LP
+→ publishes worker
+→ customer discovers worker or starts matching
 → form validates
 → correct WhatsApp message opens
 ```
+
+## 10. Explicitly Not MVP / Future
+
+The following are not current business requirements: CRM, lead assignment, lead status history, follow-up scheduler, customer accounts, worker accounts, bookings/calendars, payments, marketplace chat, automated WhatsApp Business messaging, official government API integration, Redis/BullMQ queue processing, or microservice decomposition. Any future addition requires a separate approved product decision and operational/security review.

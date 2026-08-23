@@ -1,93 +1,58 @@
-# AHD — Systematic Execution Plan
+# AHD Execution Plan
 
-**Version:** 2.0 — Simplified CRUD + WhatsApp MVP
+**Version:** 4.0 — Final Closure Roadmap
 
-## Phase 0 — Scope Freeze
-Confirm:
-`Admin CRUD + Catalogue + Paid Matching LP + WhatsApp`.
-No CRM/payments/bookings/accounts.
+## Product Scope
 
-## Phase 1 — Foundation
-- monorepo
-- web/admin/api
-- PostgreSQL/Prisma
-- admin auth
-- object storage abstraction
-- CI/design primitives
+AHD is a WhatsApp-first domestic-worker discovery and need-based matching MVP:
 
-Gate: builds, migrations, auth, CI.
-
-## Phase 2 — Admin CRUD
-- Nationalities/Countries
-- Skills
-- Workers
-- Media
-- Draft/Publish/Archive
-- WhatsApp/contact settings
-
-Gate:
 ```text
-Admin creates worker → publishes → public API returns worker
+Admin CRUD → public catalogue / transfer landing page → validated form → WhatsApp → sales/operations
 ```
 
-## Phase 3 — Public Catalogue
-- homepage
-- worker listing
-- filters/search
-- worker profile
-- SEO/RTL/mobile/accessibility
+The current plan does not include CRM, lead persistence, payments, bookings, accounts, Redis, BullMQ, queues, or a framework rewrite.
 
-Gate: customer can find/evaluate worker easily.
+## Delivery History
 
-## Phase 4 — Specific Worker WhatsApp
-- request CTA
-- small form
-- validation
-- message builder
-- WhatsApp URL
-- analytics
+| Stage | Status | Result |
+|---|---|---|
+| Product definition | Complete | WhatsApp-first business scope and guardrails established |
+| Replit-derived visual prototype | Complete | Preserved as historical visual context; not runtime authority |
+| React/Vite productionization | Complete | Maintained app lives under the legacy `artifacts/khadematy-site` path |
+| Express API and PostgreSQL | Complete | Public/admin boundaries, parameterized `pg`, and migrations implemented |
+| Admin CRUD | Complete | Workers, taxonomy, content/settings, publication, availability, media, and auth |
+| Public catalogue | Complete | DB-backed catalogue, filters, profiles, DTO privacy |
+| Specific-worker WhatsApp flow | Complete | Validated form, trusted reference, encoded URL |
+| Need-based matching flow | Complete | Two-step validated form, consent, encoded URL |
+| Independent QA and hardening | Complete | Authorization, privacy, media, migration, readiness, lint/CI corrections |
+| Disposable PostgreSQL staging | Complete | Migration, admin, public, lifecycle, CORS, browser/axe verification |
+| Final source-of-truth reconciliation | In progress | Canonical documentation and durable memory are being closed in Task 3 |
 
-Gate:
+## Current Closure Stage
+
+Task 3 is the final source-of-truth and production-readiness closure. It must reconcile all canonical documentation with verified implementation, preserve the existing UI and scope, update durable memory, rerun all quality gates, and push one coherent documentation commit.
+
+Repository-controlled behavior is classified as ready when the final gates pass. Real S3 binary upload/public retrieval and a production-like HTTPS/domain topology remain external gates unless valid configuration becomes available for verification.
+
+## Final Closure Sequence
+
 ```text
-Profile → form → WhatsApp contains correct worker code
+reconcile docs
+→ classify historical artifacts
+→ update CODEX_MEMORY
+→ run install/lint/typecheck/test/build/audit/diff checks
+→ inspect stale-brand/scope/secrets results
+→ commit and push
+→ resolve only named external infrastructure blockers
+→ production deployment
 ```
 
-## Phase 5 — Paid Matching LP
-- conversion LP
-- Need-Based Matching
-- two-step form
-- matching message builder
-- sticky CTA
-- WhatsApp
+## Deployment Prerequisites
 
-Gate:
-```text
-LP → Step 1 → Step 2 → correct WhatsApp message
-```
+Before production traffic, configure a PostgreSQL database, run `pnpm db:status` and `pnpm db:migrate`, configure admin bootstrap/session secrets, set an explicit CORS allowlist, configure public contact/WhatsApp settings, and configure S3-compatible storage if binary uploads are required. A deployed HTTPS topology must be used to verify Secure-cookie and credentialed CORS behavior.
 
-## Phase 6 — Quality
-- analytics
-- no PII
-- WCAG 2.2 AA
-- performance
-- Sentry
-- security hardening
+## Next Stage
 
-## Phase 7 — Production/Scale
-- deploy
-- DB pooling
-- CDN/object storage
-- backups/restore
-- monitoring/load test
-- multi-instance readiness
+If repository-controlled checks pass but S3 and/or HTTPS remain unavailable, the next stage is **resolve the named external infrastructure blocker(s), then Production Deployment**. If both external checks pass as well, the next stage is **Production Deployment**.
 
-Add Redis/queues/CRM only when measured/business need appears.
-
-## Golden Vertical Slice
-```text
-Admin creates AHD-1024
-→ publishes
-→ customer opens profile
-→ request form
-→ WhatsApp opens with AHD-1024
-```
+External observability is not a current product requirement. Add it only when a separately approved operational need exists; current analytics and server/application logs must continue to exclude customer PII.

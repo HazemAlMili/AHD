@@ -314,18 +314,18 @@ These corrections are confirmed in the current code and must not regress:
 
 ## 21. Current QA Status
 
-Latest QA result: **LARAVEL/MYSQL PARITY PASS WITH DOCKER LOCAL DEVELOPMENT PASS AND EXTERNAL HOSTING CHECKS REMAINING**. Disposable MySQL exercised fresh and idempotent Laravel migrations, admin session/RBAC, worker CRUD/publication/availability, taxonomy/content/settings, local media upload/ownership, public catalogue/profile/filtering/DTO privacy, both WhatsApp preview journeys, and the React admin dashboard. The Docker Compose stack additionally passed clean-volume initialization, same-origin Nginx routing, Vite HMR WebSocket upgrade, containerized Laravel/PHP and frontend quality gates, normal restart persistence, and Docker-local public media retrieval. The remaining blockers are shared-hosting and external storage checks only.
+Latest QA result: **AHD FULL INTEGRATION PASS WITH NON-BLOCKING ITEMS**. The real Docker Compose browser path was exercised through React/Vite, Nginx, Laravel 12/PHP-FPM, MySQL 8.4, and the shared public-storage volume. Blocking contract defects in taxonomy defaults, local media presigning, multipart media metadata, relative media editing, duplicate worker-code validation, and API transport timeout/error handling were fixed and regression-tested. The approved no-CRM, WhatsApp-first MVP scope remains unchanged. The next stage is shared-hosting staging deployment; external hosting, HTTPS, and optional S3 checks remain deployment-bound.
 
 Verified QA evidence:
 
-- Fresh and idempotent disposable MySQL migration passed; `php artisan migrate:status` reports the active schema applied.
-- Laravel feature suite: 4 tests / 46 assertions passed in the current cleaned suite, including auth, CRUD, content/settings, media upload/ownership, privacy, and audit.
-- Golden admin slice passed: login → list/create/update/archive worker → public catalogue propagation.
-- Public profile and matching form browser previews passed with Arabic messages; no external message was sent.
-- React shared unit suite: 7/7 passed; TypeScript typecheck and production build passed.
-- Laravel PHP syntax and API route inspection passed.
-- Production dependency audit: no known vulnerabilities in the Node dependency graph.
-- Repository lint passes with seven known non-fatal Fast Refresh warnings; the same lint/typecheck/test/build source gates were executed inside Docker using image-installed binaries because pnpm 11 may attempt unnecessary workspace reconciliation under bind mounts.
+- Fresh and idempotent disposable MySQL migration/reset passed; final reset left one bootstrap admin and zero synthetic workers, taxonomies, media, settings, content, sessions, audits, or pivots.
+- Laravel feature suite: **6 tests / 57 assertions** passed, including the targeted optional-sort-order, relative-presign, duplicate-code, auth, CRUD, content/settings, media ownership, privacy, and audit coverage.
+- Golden browser admin slice passed: login → taxonomy create → worker create/update → media upload → publish → public catalogue/profile propagation.
+- Public catalogue/profile/filtering and both Arabic WhatsApp preview journeys passed without sending a message or persisting customer/lead data.
+- React shared unit suite: **7/7** passed; TypeScript typecheck and production build passed.
+- Docker route listing, health/readiness, same-origin Nginx routing, local public media retrieval, and app/frontend/mysql health checks passed.
+- Repository lint passes with seven known non-fatal Fast Refresh warnings; Vite retains the existing tooltip source-map and chunk-size warnings.
+- A bounded API timeout now converts a stopped-Laravel browser state into a controlled Arabic connection error instead of an indefinite skeleton.
 - Existing React visual/RTL behavior was preserved; no UI redesign was introduced.
 
 ## 22. Docker-Local Development
@@ -343,6 +343,7 @@ Verified QA evidence:
 - Real S3-compatible binary upload/public retrieval has not been exercised; local/public-disk upload passed on disposable MySQL.
 - No real outbound WhatsApp message was sent; controlled preview URLs and Arabic messages passed for both golden journeys.
 - Vite reports the existing tooltip source-map warning during production build; the build succeeds.
+- The local gateway emits HTML before Laravel for requests above its configured 12 MB body limit; staging should align gateway and Laravel error handling if a JSON-only oversized-upload contract is required.
 - Synthetic MySQL/admin/worker fixtures are disposable and were removed by the final clean-volume Docker reset; they must remain absent from any production classification.
 
 ## 24. Agent Working Protocol
@@ -404,7 +405,7 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 27. Current Next Action
 
-**NEXT ACTION:** Provide or authorize one conventional shared-hosting target with its domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then deploy `laravel-api` and run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope.
+**NEXT ACTION:** Proceed to **SHARED-HOSTING STAGING DEPLOYMENT** with an authorized domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope.
 
 ## 28. Architecture Pivot State
 

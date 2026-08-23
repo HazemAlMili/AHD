@@ -94,4 +94,32 @@ class ApiParityTest extends TestCase
         $this->getJson('/api/v1/workers')->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/workers/draft')->assertNotFound();
     }
+
+    public function test_admin_taxonomy_defaults_sort_order_and_local_presign_is_relative(): void
+    {
+        $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();
+        $token = $login->getCookie('ahd_admin_session', false)->getValue();
+        $request = fn (string $method, string $uri, array $body = []) => $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->json($method, $uri, $body);
+
+        $request('POST', '/api/v1/admin/nationalities', ['nameAr' => 'فلبينية اختبار', 'nameEn' => 'QA Filipino', 'isActive' => true])
+            ->assertCreated()->assertJsonPath('data.sortOrder', 0);
+        $request('POST', '/api/v1/admin/skills', ['nameAr' => 'رعاية أطفال اختبار', 'nameEn' => 'QA Childcare', 'isActive' => true])
+            ->assertCreated()->assertJsonPath('data.sortOrder', 0);
+
+        Worker::create(['id' => 'presign-worker', 'public_code' => 'AHD-5555', 'display_name' => 'Presign Worker', 'slug' => 'presign-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'DRAFT', 'availability_status' => 'AVAILABLE']);
+        $request('POST', '/api/v1/admin/workers/presign-worker/media/upload', ['contentType' => 'image/png', 'size' => 68])
+            ->assertOk()->assertJsonPath('data.upload.url', '/api/v1/admin/workers/presign-worker/media/upload');
+    }
+
+    public function test_duplicate_public_code_returns_validation_error_without_partial_worker(): void
+    {
+        $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();
+        $token = $login->getCookie('ahd_admin_session', false)->getValue();
+        Worker::create(['id' => 'existing-worker', 'public_code' => 'AHD-8888', 'display_name' => 'Existing', 'slug' => 'existing-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'DRAFT', 'availability_status' => 'AVAILABLE']);
+        $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->postJson('/api/v1/admin/workers', [
+            'publicCode' => 'AHD-8888', 'displayName' => 'Duplicate', 'nationalityId' => $this->nationality->id, 'skillIds' => [], 'languages' => [], 'sortOrder' => 0,
+        ])->assertStatus(422)->assertJsonPath('errors.public_code.0', 'The public code has already been taken.');
+        $this->assertDatabaseCount('workers', 1);
+    }
+
 }

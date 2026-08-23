@@ -30,11 +30,23 @@ type ApiEnvelope<T> = { data: T };
 const apiBase = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/$/, "");
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { credentials: "include", ...init, headers: { "content-type": "application/json", ...(init?.headers || {}) } });
-  if (response.status === 204) return undefined as T;
-  const body = await response.json().catch(() => null) as { message?: string } | null;
-  if (!response.ok) throw new Error(body?.message || `Request failed (${response.status})`);
-  return (body as ApiEnvelope<T>).data;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase}${path}`, { credentials: "include", ...init, signal: init?.signal || controller.signal, headers: { "content-type": "application/json", accept: "application/json", ...(init?.headers || {}) } });
+    } catch {
+      throw new Error("تعذر الاتصال بالخادم.");
+    }
+    if (response.status === 204) return undefined as T;
+    const body = await response.json().catch(() => null) as (ApiEnvelope<T> & { message?: string }) | null;
+    if (!response.ok) throw new Error(body?.message || `Request failed (${response.status})`);
+    if (!body || typeof body !== "object" || !("data" in body)) throw new Error("Invalid API response");
+    return body.data;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export function getWorkers(params: { q?: string; skill?: string; nationality?: string; availability?: string } = {}): Promise<ApiWorker[]> {
@@ -72,14 +84,16 @@ export const adminApi = {
   saveContent: (key: string, input: Record<string, unknown>) => apiFetch<Record<string, unknown>>(`/admin/content/${key}`, { method: "PATCH", body: JSON.stringify(input) }),
   saveMedia: (workerId: string, input: Record<string, unknown>) => apiFetch<Record<string, unknown>>(`/admin/workers/${workerId}/media`, { method: "POST", body: JSON.stringify(input) }),
   updateMedia: (workerId: string, mediaId: string, input: Record<string, unknown>) => apiFetch<Record<string, unknown>>(`/admin/workers/${workerId}/media/${mediaId}`, { method: "PATCH", body: JSON.stringify(input) }),
-  uploadMedia: async (workerId: string, file: File) => {
+  uploadMedia: async (workerId: string, file: File): Promise<{ url: string; storageKey?: string; mimeType: string; sizeBytes: number }> => {
     const target = await apiFetch<{ upload: { url: string; fields: Record<string, string> }; publicUrl: string; maxBytes: number }>(`/admin/workers/${workerId}/media/upload`, { method: "POST", body: JSON.stringify({ contentType: file.type, size: file.size }) });
     const body = new FormData();
     for (const [key, value] of Object.entries(target.upload.fields)) body.append(key, value);
     body.append("file", file);
-    const response = await fetch(target.upload.url, { method: "POST", body });
-    if (!response.ok) throw new Error("تعذر رفع الوسيط إلى مخزن الملفات.");
-    return target.publicUrl;
+    const response = await fetch(target.upload.url, { method: "POST", body, credentials: "include", headers: { accept: "application/json" } });
+    const uploaded = await response.json().catch(() => null) as { data?: { publicUrl?: string; storageKey?: string } } | null;
+    if (!response.ok) throw new Error(uploaded?.data?.publicUrl || "تعذر رفع الوسيط إلى مخزن الملفات.");
+    if (!uploaded?.data?.publicUrl) throw new Error("Invalid API response");
+    return { url: uploaded.data.publicUrl, storageKey: uploaded.data.storageKey, mimeType: file.type, sizeBytes: file.size };
   },
   deleteMedia: (workerId: string, mediaId: string) => apiFetch<null>(`/admin/workers/${workerId}/media/${mediaId}`, { method: "DELETE" }),
 };

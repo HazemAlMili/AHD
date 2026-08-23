@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ApiController extends Controller
 {
@@ -195,7 +196,7 @@ class ApiController extends Controller
             $url = Storage::disk('s3')->temporaryUploadUrl($key, now()->addMinutes(15), ['headers' => ['Content-Type' => $input['contentType']]]);
             return response()->json(['data' => ['upload' => ['url' => $url, 'fields' => []], 'publicUrl' => Storage::disk('s3')->url($key), 'maxBytes' => $limits[$input['contentType']]]]);
         }
-        $uploadUrl = $request->url();
+        $uploadUrl = $request->getPathInfo();
         return response()->json(['data' => ['upload' => ['url' => $uploadUrl, 'fields' => []], 'publicUrl' => Storage::disk('public')->url($key), 'maxBytes' => $limits[$input['contentType']]]]);
     }
 
@@ -222,7 +223,9 @@ class ApiController extends Controller
     {
         $aliases = ['publicCode' => 'public_code', 'displayName' => 'display_name', 'nationalityId' => 'nationality_id', 'currentCity' => 'current_city', 'yearsExperience' => 'years_experience', 'saudiExperienceYears' => 'saudi_experience_years', 'publicSummaryEn' => 'public_summary_en', 'publicSummaryAr' => 'public_summary_ar', 'internalNotes' => 'internal_notes', 'availabilityStatus' => 'availability_status', 'publicationStatus' => 'publication_status', 'isFeatured' => 'is_featured', 'sortOrder' => 'sort_order', 'skillIds' => 'skill_ids'];
         foreach ($aliases as $camel => $snake) if ($request->has($camel) && !$request->has($snake)) $request->merge([$snake => $request->input($camel)]);
-        $rules = ['public_code' => ['nullable', 'regex:/^AHD-[0-9]{4,}$/i'], 'display_name' => [$partial ? 'sometimes' : 'required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:160'], 'nationality_id' => [$partial ? 'sometimes' : 'required', 'exists:nationalities,id'], 'age' => ['nullable', 'integer', 'min:18', 'max:100'], 'current_city' => ['nullable', 'string', 'max:120'], 'years_experience' => ['nullable', 'integer', 'min:0', 'max:80'], 'saudi_experience_years' => ['nullable', 'integer', 'min:0', 'max:80'], 'public_summary_en' => ['nullable', 'string', 'max:3000'], 'public_summary_ar' => ['nullable', 'string', 'max:3000'], 'languages' => ['nullable', 'array', 'max:10'], 'languages.*' => ['string', 'max:80'], 'internal_notes' => ['nullable', 'string', 'max:5000'], 'availability_status' => ['nullable', 'in:AVAILABLE,ON_HOLD,RESERVED,TRANSFER_IN_PROGRESS,TRANSFERRED,UNAVAILABLE'], 'publication_status' => ['nullable', 'in:DRAFT,PUBLISHED,ARCHIVED'], 'is_featured' => ['boolean'], 'sort_order' => ['integer', 'min:0', 'max:100000'], 'skill_ids' => ['nullable', 'array', 'max:50'], 'skill_ids.*' => ['exists:skills,id']];
+        $publicCodeRule = Rule::unique('workers', 'public_code');
+        if ($partial && is_string($routeId = $request->route('id'))) $publicCodeRule->ignore($routeId);
+        $rules = ['public_code' => ['nullable', 'regex:/^AHD-[0-9]{4,}$/i', $publicCodeRule], 'display_name' => [$partial ? 'sometimes' : 'required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:160'], 'nationality_id' => [$partial ? 'sometimes' : 'required', 'exists:nationalities,id'], 'age' => ['nullable', 'integer', 'min:18', 'max:100'], 'current_city' => ['nullable', 'string', 'max:120'], 'years_experience' => ['nullable', 'integer', 'min:0', 'max:80'], 'saudi_experience_years' => ['nullable', 'integer', 'min:0', 'max:80'], 'public_summary_en' => ['nullable', 'string', 'max:3000'], 'public_summary_ar' => ['nullable', 'string', 'max:3000'], 'languages' => ['nullable', 'array', 'max:10'], 'languages.*' => ['string', 'max:80'], 'internal_notes' => ['nullable', 'string', 'max:5000'], 'availability_status' => ['nullable', 'in:AVAILABLE,ON_HOLD,RESERVED,TRANSFER_IN_PROGRESS,TRANSFERRED,UNAVAILABLE'], 'publication_status' => ['nullable', 'in:DRAFT,PUBLISHED,ARCHIVED'], 'is_featured' => ['boolean'], 'sort_order' => ['integer', 'min:0', 'max:100000'], 'skill_ids' => ['nullable', 'array', 'max:50'], 'skill_ids.*' => ['exists:skills,id']];
         $input = $request->validate($rules);
         if (!$partial) { $input['public_code'] ??= 'AHD-' . random_int(1000, 9999); $input['slug'] ??= Str::slug($input['display_name']) . '-' . Str::lower(Str::random(6)); $input['languages'] ??= []; }
         return $input;
@@ -237,8 +240,8 @@ class ApiController extends Controller
 
     private function saveTaxonomy(Request $request, string $modelClass, ?string $id, string $kind): JsonResponse
     {
-        $request->merge(['name_en' => $request->input('name_en', $request->input('nameEn')), 'name_ar' => $request->input('name_ar', $request->input('nameAr')), 'is_active' => $request->input('is_active', $request->input('isActive')), 'sort_order' => $request->input('sort_order', $request->input('sortOrder'))]); $input = $request->validate(['name_en' => ['required', 'string', 'max:120'], 'name_ar' => ['required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:140'], 'is_active' => ['boolean'], 'sort_order' => ['integer', 'min:0', 'max:100000']]);
-        $model = $id ? $modelClass::find($id) : new $modelClass(['id' => Str::uuid()->toString()]); abort_if($id && !$model, 404, ucfirst($kind) . ' not found'); $model->fill(array_merge($input, ['slug' => $input['slug'] ?? Str::slug($input['name_en'])])); $model->save();
+        $request->merge(['name_en' => $request->input('name_en', $request->input('nameEn')), 'name_ar' => $request->input('name_ar', $request->input('nameAr')), 'is_active' => $request->input('is_active', $request->input('isActive')), 'sort_order' => $request->input('sort_order', $request->input('sortOrder'))]); $input = $request->validate(['name_en' => ['required', 'string', 'max:120'], 'name_ar' => ['required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:140'], 'is_active' => ['boolean'], 'sort_order' => ['nullable', 'integer', 'min:0', 'max:100000']]);
+        $model = $id ? $modelClass::find($id) : new $modelClass(['id' => Str::uuid()->toString()]); abort_if($id && !$model, 404, ucfirst($kind) . ' not found'); $model->fill(array_merge($input, ['slug' => $input['slug'] ?? Str::slug($input['name_en']), 'sort_order' => $input['sort_order'] ?? 0])); $model->save();
         $this->audit($request, "{$kind}." . ($id ? 'updated' : 'created'), ucfirst($kind), $model->id, null, $model->toArray()); return response()->json(['data' => $this->taxonomyDto($model)], $id ? 200 : 201);
     }
 

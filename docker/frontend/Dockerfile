@@ -23,7 +23,8 @@ RUN mkdir -p /root/.config/pnpm \
     && printf '%s\n' 'node-linker=hoisted' 'store-dir=/pnpm/store' 'confirmModulesPurge=false' > /root/.config/pnpm/rc
 
 COPY docker/frontend/entrypoint.sh /usr/local/bin/ahd-frontend-entrypoint
-RUN chmod +x /usr/local/bin/ahd-frontend-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/ahd-frontend-entrypoint \
+    && chmod +x /usr/local/bin/ahd-frontend-entrypoint
 
 EXPOSE 5173
 

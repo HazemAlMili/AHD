@@ -19,7 +19,8 @@ RUN composer dump-autoload --optimize --no-interaction --no-scripts \
 
 COPY docker/app/www.conf /usr/local/etc/php-fpm.d/zz-ahd.conf
 COPY docker/app/entrypoint.sh /usr/local/bin/ahd-app-entrypoint
-RUN chmod +x /usr/local/bin/ahd-app-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/ahd-app-entrypoint \
+    && chmod +x /usr/local/bin/ahd-app-entrypoint
 
 EXPOSE 9000
 

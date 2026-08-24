@@ -140,6 +140,22 @@ class ApiParityTest extends TestCase
         $this->assertDatabaseCount('workers', 1);
     }
 
+    public function test_worker_relation_ids_validate_without_partial_worker_write(): void
+    {
+        $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();
+        $token = $login->getCookie('ahd_admin_session', false)->getValue();
+        $request = fn (array $body) => $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->postJson('/api/v1/admin/workers', $body);
+        $base = ['displayName' => 'Invalid Relation Worker', 'skillIds' => [], 'languages' => [], 'sortOrder' => 0];
+
+        $request($base + ['publicCode' => 'AHD-6201', 'nationalityId' => 'missing-nationality'])
+            ->assertStatus(422)->assertJsonStructure(['errors' => ['nationality_id']]);
+        $this->assertDatabaseMissing('workers', ['public_code' => 'AHD-6201']);
+
+        $request(array_merge($base, ['publicCode' => 'AHD-6202', 'nationalityId' => $this->nationality->id, 'skillIds' => ['missing-skill']]))
+            ->assertStatus(422)->assertJsonStructure(['errors' => ['skill_ids.0']]);
+        $this->assertDatabaseMissing('workers', ['public_code' => 'AHD-6202']);
+    }
+
     public function test_typed_nationality_creates_and_reuses_taxonomy(): void
     {
         $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();

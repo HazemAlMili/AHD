@@ -148,6 +148,27 @@ class ApiController extends Controller
     public function unpublish(Request $request, string $id): JsonResponse { return $this->statusMutation($request, $id, 'DRAFT', 'worker.unpublished'); }
     public function archive(Request $request, string $id): JsonResponse { return $this->statusMutation($request, $id, 'ARCHIVED', 'worker.archived'); }
 
+    public function restore(Request $request, string $id): JsonResponse
+    {
+        $worker = Worker::find($id); abort_unless($worker, 404, 'العاملة غير موجودة.');
+        abort_unless($worker->publication_status === 'ARCHIVED', 422, 'لا يمكن استعادة عاملة غير مؤرشفة.');
+        return $this->statusMutation($request, $id, 'DRAFT', 'worker.restored');
+    }
+
+    public function deleteWorker(Request $request, string $id): JsonResponse
+    {
+        $worker = Worker::find($id); abort_unless($worker, 404, 'العاملة غير موجودة.');
+        $before = $worker->toArray();
+        $disk = config('filesystems.disks.s3.bucket') ? 's3' : 'public';
+        $mediaKeys = WorkerMedia::where('worker_id', $id)->whereNotNull('storage_key')->pluck('storage_key')->all();
+        foreach ($mediaKeys as $key) {
+            if (str_starts_with($key, 'workers/')) Storage::disk($disk)->delete($key);
+        }
+        $worker->delete();
+        $this->audit($request, 'worker.deleted', 'Worker', $id, $before, null);
+        return response()->json(null, 204);
+    }
+
     public function availability(Request $request, string $id): JsonResponse
     {
         $request->validate(['status' => ['required', 'in:AVAILABLE,ON_HOLD,RESERVED,TRANSFER_IN_PROGRESS,TRANSFERRED,UNAVAILABLE']]);

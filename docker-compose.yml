@@ -63,7 +63,7 @@ services:
       mysql:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "php artisan db:show --no-interaction >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "php -r 'try { new PDO(\"mysql:host=\" . getenv(\"DB_HOST\") . \";dbname=\" . getenv(\"DB_DATABASE\"), getenv(\"DB_USERNAME\"), getenv(\"DB_PASSWORD\")); } catch (Throwable) { exit(1); }'"]
       interval: 10s
       timeout: 10s
       retries: 12

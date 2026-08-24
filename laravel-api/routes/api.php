@@ -40,7 +40,11 @@ Route::prefix('v1')->middleware('cors')->group(function () use ($api) {
                 Route::delete('/workers/{id}/media/{mediaId}', [$api, 'deleteMedia']);
             });
 
-            Route::middleware('role:SUPER_ADMIN,ADMIN')->post('/workers/{id}/archive', [$api, 'archive']);
+            Route::middleware('role:SUPER_ADMIN,ADMIN')->group(function () use ($api) {
+                Route::post('/workers/{id}/archive', [$api, 'archive']);
+                Route::post('/workers/{id}/restore', [$api, 'restore']);
+            });
+            Route::middleware('role:SUPER_ADMIN')->delete('/workers/{id}', [$api, 'deleteWorker']);
             Route::middleware('role:SUPER_ADMIN,ADMIN,CONTENT_MANAGER')->group(function () use ($api) {
                 Route::post('/nationalities', [$api, 'saveNationality']);
                 Route::patch('/nationalities/{id}', [$api, 'saveNationality']);

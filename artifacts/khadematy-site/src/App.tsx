@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { buildMatchingRequestMessage, buildWhatsAppUrl, buildWorkerRequestMessage, matchingRequestSchema, workerRequestFormSchema } from "@workspace/api-zod";
 import { getContent, getNationalities, getPublicSettings, getSkills, getWorker, getWorkers, type ApiWorker } from "./lib/api";
+import { availabilityLabel } from "./lib/status";
 import { trackEvent } from "./lib/analytics";
 import AdminApp from "./Admin";
 
@@ -31,8 +32,7 @@ const initialForm: FormData = { city: "", urgency: "", needs: [], languagePrefer
 const workerColors = ["#d9bfae", "#b8cec1", "#d1c6a5", "#cab8c5"];
 
 function mapWorker(worker: ApiWorker, index = 0): Worker {
-  const availabilityLabels: Record<string, string> = { AVAILABLE: "متاحة للتواصل", ON_HOLD: "متوقفة مؤقتاً", RESERVED: "محجوزة", TRANSFER_IN_PROGRESS: "إجراءات النقل جارية", TRANSFERRED: "تم النقل", UNAVAILABLE: "غير متاحة" };
-  return { id: worker.publicCode, publicCode: worker.publicCode, slug: worker.slug, name: worker.displayName, origin: worker.nationality.nameAr || worker.nationality.nameEn, nationalitySlug: worker.nationality.slug, experience: worker.yearsExperience ? `${worker.yearsExperience} سنوات خبرة` : "خبرة منزلية موثقة", languages: worker.languages, skills: worker.skills, availabilityStatus: worker.availabilityStatus, availability: availabilityLabels[worker.availabilityStatus] || "متاحة للتواصل", color: workerColors[index % workerColors.length], initials: worker.displayName.trim().slice(0, 1), story: worker.summary || "ملف تعريفي مختصر. التفاصيل المناسبة تبدأ بالحوار.", imageUrl: worker.media.find((item) => item.isPrimary)?.url || worker.media[0]?.url, requestable: worker.availabilityStatus === "AVAILABLE" };
+  return { id: worker.publicCode, publicCode: worker.publicCode, slug: worker.slug, name: worker.displayName, origin: worker.nationality.nameAr || worker.nationality.nameEn, nationalitySlug: worker.nationality.slug, experience: worker.yearsExperience ? `${worker.yearsExperience} سنوات خبرة` : "خبرة منزلية موثقة", languages: worker.languages, skills: worker.skills, availabilityStatus: worker.availabilityStatus, availability: availabilityLabel(worker.availabilityStatus), color: workerColors[index % workerColors.length], initials: worker.displayName.trim().slice(0, 1), story: worker.summary || "ملف تعريفي مختصر. التفاصيل المناسبة تبدأ بالحوار.", imageUrl: worker.media.find((item) => item.isPrimary)?.url || worker.media[0]?.url, requestable: worker.availabilityStatus === "AVAILABLE" };
 }
 
 function cn(...classes: Array<string | false | null | undefined>) { return classes.filter(Boolean).join(" "); }

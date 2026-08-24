@@ -36,7 +36,7 @@ const apiBase = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/$/, "");
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 10000);
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
   try {
     let response: Response;
     try {
@@ -76,6 +76,8 @@ export const adminApi = {
   publish: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/publish`, { method: "POST" }),
   unpublish: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/unpublish`, { method: "POST" }),
   archive: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/archive`, { method: "POST" }),
+  restore: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/restore`, { method: "POST" }),
+  deleteWorker: (id: string) => apiFetch<null>(`/admin/workers/${id}`, { method: "DELETE" }),
   availability: (id: string, status: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/availability`, { method: "PATCH", body: JSON.stringify({ status }) }),
   nationalities: () => apiFetch<TaxonomyItem[]>("/admin/nationalities"),
   skills: () => apiFetch<TaxonomyItem[]>("/admin/skills"),

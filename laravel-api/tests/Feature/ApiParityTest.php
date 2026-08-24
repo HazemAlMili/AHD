@@ -9,6 +9,7 @@ use App\Models\Nationality;
 use App\Models\Skill;
 use App\Models\SystemSetting;
 use App\Models\Worker;
+use App\Models\WorkerMedia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -170,6 +171,56 @@ class ApiParityTest extends TestCase
         $this->assertDatabaseCount('nationalities', 2);
         $this->assertDatabaseHas('nationalities', ['name_ar' => 'نيبالية اختبار', 'name_en' => 'نيبالية اختبار', 'is_active' => 1]);
         $request($base + ['publicCode' => 'AHD-6103'])->assertStatus(422)->assertJsonStructure(['errors' => ['nationality_name']]);
+    }
+
+    public function test_restore_returns_archived_worker_to_draft_with_authorization(): void
+    {
+        $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();
+        $token = $login->getCookie('ahd_admin_session', false)->getValue();
+        $request = fn (string $method, string $uri) => $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->json($method, $uri);
+        Worker::create(['id' => 'restore-worker', 'public_code' => 'AHD-6301', 'display_name' => 'Restore Worker', 'slug' => 'restore-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'ARCHIVED', 'availability_status' => 'AVAILABLE', 'archived_at' => now()]);
+        AdminUser::create(['id' => 'analyst-test', 'email' => 'analyst@test.local', 'password_hash' => Hash::make('analyst-password'), 'display_name' => 'Analyst', 'role' => 'ANALYST', 'is_active' => true]);
+
+        $this->postJson('/api/v1/admin/workers/restore-worker/restore')->assertUnauthorized();
+        $analystLogin = $this->postJson('/api/v1/admin/auth/login', ['email' => 'analyst@test.local', 'password' => 'analyst-password'])->assertOk();
+        $analystToken = $analystLogin->getCookie('ahd_admin_session', false)->getValue();
+        $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $analystToken)->json('POST', '/api/v1/admin/workers/restore-worker/restore')->assertForbidden();
+        $request('POST', '/api/v1/admin/workers/missing-worker/restore')->assertNotFound();
+        $request('POST', '/api/v1/admin/workers/restore-worker/restore')->assertOk()->assertJsonPath('data.publication_status', 'DRAFT');
+        $this->assertDatabaseHas('workers', ['id' => 'restore-worker', 'publication_status' => 'DRAFT', 'archived_at' => null]);
+        $request('POST', '/api/v1/admin/workers/restore-worker/restore')->assertStatus(422);
+        $this->getJson('/api/v1/workers')->assertOk()->assertJsonCount(0, 'data');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'worker.restored', 'entity_id' => 'restore-worker']);
+    }
+
+    public function test_delete_worker_removes_relations_media_and_files_super_admin_only(): void
+    {
+        Storage::fake('public');
+        $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();
+        $token = $login->getCookie('ahd_admin_session', false)->getValue();
+        $request = fn (string $method, string $uri) => $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->json($method, $uri);
+        $worker = Worker::create(['id' => 'delete-worker', 'public_code' => 'AHD-6401', 'display_name' => 'Delete Worker', 'slug' => 'delete-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'PUBLISHED', 'availability_status' => 'AVAILABLE']);
+        $worker->skills()->attach($this->skill->id);
+        WorkerMedia::create(['id' => 'delete-media', 'worker_id' => 'delete-worker', 'url' => '/storage/workers/delete-worker/file.png', 'storage_key' => 'workers/delete-worker/file.png', 'mime_type' => 'image/png', 'visibility' => 'PUBLIC', 'is_primary' => true, 'created_at' => now()]);
+        Storage::disk('public')->put('workers/delete-worker/file.png', 'image-bytes');
+        Worker::create(['id' => 'survivor-worker', 'public_code' => 'AHD-6402', 'display_name' => 'Survivor Worker', 'slug' => 'survivor-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'PUBLISHED', 'availability_status' => 'AVAILABLE']);
+        AdminUser::create(['id' => 'analyst-delete', 'email' => 'analyst-delete@test.local', 'password_hash' => Hash::make('analyst-password'), 'display_name' => 'Analyst Delete', 'role' => 'ANALYST', 'is_active' => true]);
+
+        $this->deleteJson('/api/v1/admin/workers/delete-worker')->assertUnauthorized();
+        $analystLogin = $this->postJson('/api/v1/admin/auth/login', ['email' => 'analyst-delete@test.local', 'password' => 'analyst-password'])->assertOk();
+        $analystToken = $analystLogin->getCookie('ahd_admin_session', false)->getValue();
+        $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $analystToken)->json('DELETE', '/api/v1/admin/workers/delete-worker')->assertForbidden();
+        $request('DELETE', '/api/v1/admin/workers/missing-worker')->assertNotFound();
+        $request('DELETE', '/api/v1/admin/workers/delete-worker')->assertNoContent();
+
+        $this->assertDatabaseMissing('workers', ['id' => 'delete-worker']);
+        $this->assertDatabaseMissing('worker_skills', ['worker_id' => 'delete-worker']);
+        $this->assertDatabaseMissing('worker_media', ['worker_id' => 'delete-worker']);
+        Storage::disk('public')->assertMissing('workers/delete-worker/file.png');
+        $this->assertDatabaseHas('workers', ['id' => 'survivor-worker']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'worker.deleted', 'entity_id' => 'delete-worker']);
+        $this->getJson('/api/v1/workers/delete-worker')->assertNotFound();
+        $this->getJson('/api/v1/workers')->assertOk()->assertJsonPath('data.0.publicCode', 'AHD-6402');
     }
 
 

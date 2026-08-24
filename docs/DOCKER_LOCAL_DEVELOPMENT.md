@@ -19,8 +19,8 @@ The normal application origin is `http://localhost:8080`. The public website is 
 From the repository root, run:
 
 ```bash
-docker compose up -d --build
-docker compose ps
+docker compose --env-file .env.docker up -d --build --force-recreate
+docker compose --env-file .env.docker ps
 ```
 
 The first build downloads the PHP/Composer and Node/pnpm dependencies into Docker image layers. The Laravel vendor and storage data use named volumes; the MySQL data uses `ahd_mysql_data`. The frontend source is mounted while its dependency tree remains image-managed, and startup performs a frozen offline workspace-link step from the cached image store. On startup, the `app` service waits for the MySQL healthcheck, creates a local `APP_KEY` in the ignored `laravel-api/.env` if one is not present, runs the current Laravel migrations, and runs the idempotent local admin bootstrap.
@@ -29,7 +29,9 @@ To use explicit local values instead of the documented development defaults, cop
 
 ```bash
 cp .env.docker.example .env.docker
-docker compose --env-file .env.docker up -d --build
+# Edit .env.docker and set AHD_ADMIN_NAME, AHD_ADMIN_EMAIL, and AHD_ADMIN_PASSWORD.
+docker compose --env-file .env.docker up -d --build --force-recreate
+docker compose --env-file .env.docker exec app php artisan db:seed --class=DatabaseSeeder --force --no-interaction
 ```
 
 The template values are disposable development values and are not production credentials. Do not commit `.env.docker`, `laravel-api/.env`, generated keys, passwords, database dumps, or real data.
@@ -50,7 +52,19 @@ The frontend uses `VITE_API_URL=/api/v1`, so the browser keeps one same-site ori
 
 The first-start bootstrap reads `AHD_ADMIN_NAME`, `AHD_ADMIN_EMAIL`, and `AHD_ADMIN_PASSWORD` from the Docker Compose environment. With no `.env.docker`, the intentionally obvious development-only defaults are `AHD Local Admin`, `admin@ahd.local`, and `change-me-local-only`. Set your own local values in the ignored `.env.docker` before the first start when desired.
 
-The existing `DatabaseSeeder` is idempotent, hashes the password with Laravel, explicitly assigns `SUPER_ADMIN`, and is guarded to `local` and `testing` environments. It does not silently create an administrator in production. Re-running the normal startup updates the configured local admin rather than creating duplicates.
+The existing `DatabaseSeeder` is guarded to `local` and `testing` environments. In those environments it idempotently reconciles the configured local admin: it creates the account when absent, updates the name and password hash when the email already exists, forces `SUPER_ADMIN` and active state, and removes stale local bootstrap accounts so exactly one configured local admin remains. A changed `AHD_ADMIN_PASSWORD` therefore takes effect after container recreation or an explicit `db:seed` without deleting the MySQL volume. The password is always hashed and is never returned by the API. In staging or production the seeder returns without creating or modifying an administrator.
+
+The agent/sandbox Docker runtime and a developer’s Docker Desktop runtime are separate machines with separate containers, named volumes, databases, and ignored `.env.docker` files. Commands run by an agent change only its own sandbox runtime. Developers must run the canonical commands below on their own machine.
+
+Canonical developer-machine credential update:
+
+```bash
+docker compose --env-file .env.docker up -d --build --force-recreate
+docker compose --env-file .env.docker exec app php artisan db:seed --class=DatabaseSeeder --force --no-interaction
+docker compose --env-file .env.docker exec mysql sh -lc 'mysql -uahd -p"$MYSQL_PASSWORD" -D ahd -e "SELECT email,display_name,role,is_active FROM admin_users;"'
+```
+
+Do not run `docker compose down -v` merely to change a local admin password. The normal `up`/`db:seed` sequence preserves the MySQL volume while reconciling the configured local account.
 
 ## Common Docker-native commands
 
@@ -59,10 +73,11 @@ All runtime commands are executed inside containers:
 ```bash
 # Laravel
 
-docker compose exec app php artisan migrate
-docker compose exec app php artisan migrate:status
-docker compose exec app php artisan test
-docker compose exec app php artisan route:list --path=api
+docker compose --env-file .env.docker exec app php artisan migrate --force
+docker compose --env-file .env.docker exec app php artisan migrate:status
+docker compose --env-file .env.docker exec app php artisan db:seed --class=DatabaseSeeder --force --no-interaction
+docker compose --env-file .env.docker exec app php artisan test
+docker compose --env-file .env.docker exec app php artisan route:list --path=api
 
 # Frontend quality commands (the repository scripts, through Docker)
 docker compose exec frontend pnpm lint

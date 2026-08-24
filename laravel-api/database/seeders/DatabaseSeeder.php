@@ -24,5 +24,8 @@ class DatabaseSeeder extends Seeder
         $admin->is_active = true;
         $admin->password_hash = Hash::make($password);
         $admin->save();
+
+        // Local/test bootstrap owns the local admin set: a changed email must not leave a stale login behind.
+        AdminUser::query()->where('id', '!=', $admin->id)->delete();
     }
 }

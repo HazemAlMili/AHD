@@ -46,8 +46,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     }
     if (response.status === 204) return undefined as T;
     const body = await response.json().catch(() => null) as (ApiEnvelope<T> & { message?: string }) | null;
-    if (!response.ok) throw new Error(body?.message || `Request failed (${response.status})`);
-    if (!body || typeof body !== "object" || !("data" in body)) throw new Error("Invalid API response");
+    if (!response.ok) throw new Error(body?.message || "تعذر الاتصال بالخادم.");
+    if (!body || typeof body !== "object" || !("data" in body)) throw new Error("استجابة غير متوقعة من الخادم.");
     return body.data;
   } finally {
     window.clearTimeout(timeout);

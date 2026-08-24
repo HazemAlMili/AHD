@@ -51,7 +51,7 @@ The website does not need an internal CRM to complete this loop.
 - Laravel/MySQL architecture pivot: **implemented and verified against disposable MySQL**; the React/Vite UI remains unchanged.
 - Backend parity: **verified** for health/readiness, auth/session/RBAC, worker/taxonomy/content/settings/media operations, transactions, public DTO privacy, and both WhatsApp journeys.
 - Documentation reconciliation: **completed for the Laravel/MySQL pivot and Docker-local development environment**.
-- Homepage consolidation and polish: **implemented** — canonical `/` (with `/home` and `/help` redirecting to it), embedded two-step matching inside one `#matching` section with inline step transitions, API-backed worker carousel, simplified logo-only public navbar, and configurable FAQ. Covered by lint/typecheck/unit/build gates and code review; the recorded browser golden slices predate the consolidated Homepage, so re-running them is the standing repo-side follow-up.
+- Homepage consolidation and polish: **implemented** — canonical `/` (with `/home` and `/help` redirecting to it), embedded two-step matching inside one `#matching` section with inline step transitions, API-backed worker carousel, simplified logo-only public navbar, and configurable FAQ. Covered by lint/typecheck/unit/build gates; the post-consolidation browser golden slices have now been re-run and passed (see QA status below).
 - Repository reconciliation: **completed** — stale PostgreSQL root npm aliases removed, unused frontend workspace dependency removed, Laravel queue scaffold dev command removed, admin media-limit copy corrected, footer FAQ navigation targets the real `#faq` section, and the approved optional `age` attribute is exposed in the Admin editor.
 - Production readiness: **REPOSITORY READY WITH EXTERNAL HOSTING CHECKS**; Docker-local development was previously verified through the primary same-origin Compose URL during local integration QA.
 - Production deployment: **not executed** because no authorized shared-hosting/domain/S3 target or deployment credentials are available.
@@ -150,7 +150,7 @@ Worker state is two-dimensional:
 Authoritative visibility/requestability rules:
 
 - `DRAFT`: not active public inventory.
-- `ARCHIVED`: not active public inventory.
+- `ARCHIVED`: not active public inventory, and archiving is intentionally terminal; there is no un-archive path in the admin UI or API by approved design.
 - Public API returns only `PUBLISHED` workers with an active nationality.
 - A worker is normally requestable only when `PUBLISHED + AVAILABLE`; publication and availability remain separate concerns.
 
@@ -298,7 +298,7 @@ If canonical docs disagree with the verified implementation, investigate before 
 | Binary S3-compatible upload | **EXTERNAL CHECK** | Optional S3 path exists; real credentials/upload/public retrieval require authorized hosting. |
 | Specific-worker form/builders | **VERIFIED** | React browser preview and shared validation/message/URL checks passed. |
 | Matching flow/builders | **VERIFIED** | Browser Step 1 → Step 2 → WhatsApp preview passed. |
-| Consolidated Homepage (embedded matching, worker carousel, `/home` + `/help` redirects, simplified navbar) | **CODE VERIFIED** | Source inspection plus lint/typecheck/unit/build gates after the homepage consolidation series; the recorded browser golden slices predate this layout and should be re-run before staging sign-off. |
+| Consolidated Homepage (embedded matching, worker carousel, `/home` + `/help` redirects, simplified navbar) | **BROWSER VERIFIED** | Real-browser golden slices re-run against the consolidated layout: hero/CTA scroll, inline matching Step 1 → Step 2 → WhatsApp preview, carousel states/controls/autoplay, catalogue filters, profile, specific-worker request, FAQ, footer/section navigation, 390/768/1440 responsive sweeps, and outage/error states. |
 | Admin React integration | **VERIFIED** | Same-site localhost cookie topology loaded dashboard and worker rows. |
 | Prototype visual preservation | **VERIFIED** | Existing React UI preserved; production build passes. |
 
@@ -315,10 +315,15 @@ These corrections are confirmed in the current code and must not regress:
 - Admin editing retains the existing primary media and updates it rather than silently creating an unrelated duplicate.
 - Icon-only admin controls have explicit accessible names.
 - Direct/refresh access to `/match/thanks` without valid in-memory form state renders a truthful generic restart state; it does not persist PII or create a lead record.
+- Direct access to `/match/2` without Step 1 state redirects into Step 1 (controlled restart).
+- The admin workers table strip uses `contain-paint` so the RTL `min-w` table's scrollable overflow cannot leak into the root scroll area; at narrow widths the page stays viewport-sized while the strip scrolls internally.
+- `phpunit.xml` declares only the Feature suite; the canonical `php artisan test` command runs the Laravel feature suite (the historical dead `tests/Unit` declaration that broke the command was removed).
+- The application locale defaults to Arabic (`config/app.php` fallback `ar` plus `APP_LOCALE=ar` in `.env.example`), with `lang/ar/validation.php` providing Arabic validation messages and Arabic attribute labels for the admin field contract.
+- User-facing API copy (401 login/session, 403 role, 404 worker/content/setting/media, 422 media/WhatsApp messages) is Arabic; the frontend adapter falls back to an Arabic transport message instead of raw HTTP wording when a gateway/API failure returns a non-JSON body.
 
 ## 21. Current QA Status
 
-Latest QA result: **AHD FULL INTEGRATION PASS WITH NON-BLOCKING ITEMS**. The real Docker Compose browser path was exercised through React/Vite, Nginx, Laravel 12/PHP-FPM, MySQL 8.4, and the shared public-storage volume. Blocking contract defects in taxonomy defaults, local media presigning, multipart media metadata, relative media editing, duplicate worker-code validation, and API transport timeout/error handling were fixed and regression-tested. The approved no-CRM, WhatsApp-first MVP scope remains unchanged. The next stage is shared-hosting staging deployment; external hosting, HTTPS, and optional S3 checks remain deployment-bound.
+Latest QA result: **AHD QA CLOSURE PASS WITH ACCEPTED INTENTIONAL ITEMS** (final closure round over the scenario QA pass). All findings are dispositioned: the admin mobile overflow fix (`contain-paint`) and the `php artisan test` fix (Feature-only phpunit suite, 9 tests / 89 assertions) are preserved and re-verified; admin validation errors and user-facing API copy are Arabic via Laravel-native localization; public transport-failure UI (carousel and catalogue) shows the safe Arabic message with no raw HTTP wording; a runtime 403 scenario was browser-verified with a disposable ANALYST account (blocked mutations, Arabic message, no state change, account removed afterward); archive is classified INTENTIONAL (terminal by design, no canonical restoration requirement). The approved no-CRM, WhatsApp-first MVP scope remains unchanged. The next stage is shared-hosting staging deployment; external hosting, HTTPS, and optional S3 checks remain deployment-bound.
 
 Verified QA evidence:
 
@@ -418,7 +423,7 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 27. Current Next Action
 
-**NEXT ACTION:** Proceed to **SHARED-HOSTING STAGING DEPLOYMENT** with an authorized domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope. The standing repository-side follow-up is to re-run the browser golden slices against the consolidated Homepage before staging sign-off.
+**NEXT ACTION:** Proceed to **SHARED-HOSTING STAGING DEPLOYMENT** with an authorized domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope. The consolidated-Homepage browser golden slices were re-run and passed during the scenario QA round; no repo-side follow-up remains before staging.
 
 ## 28. Architecture Pivot State
 

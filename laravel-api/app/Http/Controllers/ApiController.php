@@ -42,7 +42,7 @@ class ApiController extends Controller
         $input = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string', 'max:200']]);
         $admin = AdminUser::where('email', $input['email'])->where('is_active', true)->first();
         if (!$admin || !Hash::check($input['password'], $admin->password_hash)) {
-            return response()->json(['message' => 'Invalid email or password'], 401);
+            return response()->json(['message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'], 401);
         }
         $token = Str::random(64);
         AdminSession::create(['token_hash' => hash('sha256', $token), 'admin_user_id' => $admin->id, 'expires_at' => now()->addHours(8), 'created_at' => now()]);
@@ -75,7 +75,7 @@ class ApiController extends Controller
     public function requireRole(Request $request, array $roles): void
     {
         $admin = $request->attributes->get('admin');
-        abort_unless($admin && in_array($admin->role, $roles, true), 403, 'Insufficient role');
+        abort_unless($admin && in_array($admin->role, $roles, true), 403, 'لا تملك صلاحية تنفيذ هذا الإجراء.');
     }
 
     public function workers(Request $request): JsonResponse
@@ -93,7 +93,7 @@ class ApiController extends Controller
     public function worker(string $slug): JsonResponse
     {
         $worker = Worker::with(['nationality', 'skills', 'media'])->where('slug', $slug)->where('publication_status', 'PUBLISHED')->whereHas('nationality', fn ($q) => $q->where('is_active', true))->first();
-        abort_unless($worker, 404, 'Worker not found');
+        abort_unless($worker, 404, 'العاملة غير موجودة.');
         return response()->json(['data' => $this->publicWorkerDto($worker)]);
     }
 
@@ -103,7 +103,7 @@ class ApiController extends Controller
     public function publicContent(string $key): JsonResponse
     {
         $block = ContentBlock::where('key', $key)->where('is_active', true)->first();
-        abort_unless($block, 404, 'Content not found');
+        abort_unless($block, 404, 'المحتوى غير موجود.');
         return response()->json(['data' => $this->contentDto($block)]);
     }
 
@@ -132,7 +132,7 @@ class ApiController extends Controller
 
     public function updateWorker(Request $request, string $id): JsonResponse
     {
-        $worker = Worker::find($id); abort_unless($worker, 404, 'Worker not found');
+        $worker = Worker::find($id); abort_unless($worker, 404, 'العاملة غير موجودة.');
         $before = $worker->toArray();
         $input = $this->workerInput($request, true);
         $input = $this->resolveNationality($input);
@@ -151,7 +151,7 @@ class ApiController extends Controller
     public function availability(Request $request, string $id): JsonResponse
     {
         $request->validate(['status' => ['required', 'in:AVAILABLE,ON_HOLD,RESERVED,TRANSFER_IN_PROGRESS,TRANSFERRED,UNAVAILABLE']]);
-        $worker = Worker::find($id); abort_unless($worker, 404, 'Worker not found');
+        $worker = Worker::find($id); abort_unless($worker, 404, 'العاملة غير موجودة.');
         $before = $worker->toArray(); $worker->update(['availability_status' => $request->string('status')->toString()]);
         $this->audit($request, 'worker.availability_changed', 'Worker', $id, $before, $worker->toArray());
         return response()->json(['data' => $this->adminWorkerDto($worker->fresh()->load(['nationality', 'skills', 'media']))]);
@@ -163,15 +163,15 @@ class ApiController extends Controller
     public function saveNationality(Request $request, ?string $id = null): JsonResponse { return $this->saveTaxonomy($request, Nationality::class, $id, 'nationality'); }
     public function saveSkill(Request $request, ?string $id = null): JsonResponse { return $this->saveTaxonomy($request, Skill::class, $id, 'skill'); }
 
-    public function adminContent(string $key): JsonResponse { $block = ContentBlock::where('key', $key)->first(); abort_unless($block, 404, 'Content not found'); return response()->json(['data' => $this->contentDto($block)]); }
+    public function adminContent(string $key): JsonResponse { $block = ContentBlock::where('key', $key)->first(); abort_unless($block, 404, 'المحتوى غير موجود.'); return response()->json(['data' => $this->contentDto($block)]); }
     public function saveContent(Request $request, string $key): JsonResponse { $request->merge(['content_en' => $request->input('content_en', $request->input('contentEn')), 'content_ar' => $request->input('content_ar', $request->input('contentAr')), 'is_active' => $request->input('is_active', $request->input('isActive'))]); $input = $request->validate(['content_en' => ['nullable'], 'content_ar' => ['nullable'], 'is_active' => ['boolean']]); $block = ContentBlock::where('key', $key)->first(); if (!$block) $block = new ContentBlock(['id' => Str::uuid()->toString(), 'key' => $key]); $block->fill($input); $block->save(); $this->audit($request, 'content.updated', 'ContentBlock', $key, null, $block->toArray()); return response()->json(['data' => $this->contentDto($block)]); }
-    public function adminSetting(string $key): JsonResponse { $setting = SystemSetting::where('key', $key)->first(); abort_unless($setting, 404, 'Setting not found'); return response()->json(['data' => ['key' => $setting->key, 'value' => $setting->value['value'] ?? $setting->value]]); }
+    public function adminSetting(string $key): JsonResponse { $setting = SystemSetting::where('key', $key)->first(); abort_unless($setting, 404, 'الإعداد غير موجود.'); return response()->json(['data' => ['key' => $setting->key, 'value' => $setting->value['value'] ?? $setting->value]]); }
 
     public function saveSetting(Request $request, string $key): JsonResponse
     {
         $input = $request->validate(['value' => ['required', 'string', 'max:200']]);
         $value = $key === 'whatsappNumber' ? preg_replace('/[^0-9]/', '', $input['value']) : $input['value'];
-        if ($key === 'whatsappNumber' && !preg_match('/^\d{8,15}$/', $value)) abort(422, 'Invalid WhatsApp number');
+        if ($key === 'whatsappNumber' && !preg_match('/^\d{8,15}$/', $value)) abort(422, 'رقم واتساب غير صالح.');
         $setting = SystemSetting::updateOrCreate(['key' => $key], ['id' => Str::uuid()->toString(), 'value' => ['value' => $value]]);
         $this->audit($request, 'setting.updated', 'SystemSetting', $key, null, ['key' => $key]);
         return response()->json(['data' => ['key' => $setting->key, 'value' => $setting->value['value'] ?? $setting->value]]);
@@ -179,20 +179,20 @@ class ApiController extends Controller
 
     public function presign(Request $request, string $id): JsonResponse
     {
-        abort_unless(Worker::whereKey($id)->exists(), 404, 'Worker not found');
+        abort_unless(Worker::whereKey($id)->exists(), 404, 'العاملة غير موجودة.');
         $limits = ['image/jpeg' => 8_000_000, 'image/png' => 8_000_000, 'image/webp' => 8_000_000, 'video/mp4' => 50_000_000];
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            abort_unless($file && $file->isValid(), 422, 'Invalid media upload');
+            abort_unless($file && $file->isValid(), 422, 'تعذر رفع الوسيط.');
             $contentType = (string) $file->getMimeType();
-            abort_unless(array_key_exists($contentType, $limits), 422, 'Unsupported media type');
-            abort_if($file->getSize() > $limits[$contentType], 413, 'Media file is too large');
+            abort_unless(array_key_exists($contentType, $limits), 422, 'نوع الوسيط غير مدعوم.');
+            abort_if($file->getSize() > $limits[$contentType], 413, 'حجم الوسيط أكبر من الحد المسموح.');
             $name = Str::uuid()->toString() . '.' . ($file->extension() ?: 'bin');
             $path = $file->storeAs("workers/{$id}", $name, 'public');
             return response()->json(['data' => ['publicUrl' => Storage::disk('public')->url($path), 'storageKey' => $path]], 201);
         }
         $input = $request->validate(['contentType' => ['required', 'in:image/jpeg,image/png,image/webp,video/mp4'], 'size' => ['required', 'integer', 'min:1']]);
-        abort_if($input['size'] > $limits[$input['contentType']], 413, 'Media file is too large');
+        abort_if($input['size'] > $limits[$input['contentType']], 413, 'حجم الوسيط أكبر من الحد المسموح.');
         $key = "workers/{$id}/" . Str::uuid()->toString();
         if (config('filesystems.disks.s3.bucket')) {
             $url = Storage::disk('s3')->temporaryUploadUrl($key, now()->addMinutes(15), ['headers' => ['Content-Type' => $input['contentType']]]);
@@ -207,9 +207,9 @@ class ApiController extends Controller
         $input = $request->validate(['url' => ['required', 'string', 'max:2000'], 'storage_key' => ['nullable', 'string', 'max:500'], 'mime_type' => ['nullable', 'string', 'max:100'], 'size_bytes' => ['nullable', 'integer'], 'visibility' => ['nullable', 'in:PUBLIC,INTERNAL,SENSITIVE'], 'is_primary' => ['boolean'], 'alt_text_ar' => ['nullable', 'string', 'max:300']]);
         $localPath = app()->environment('local') && str_starts_with($input['url'], '/storage/');
         if (!$localPath && !str_starts_with($input['url'], 'https://')) abort(422, 'Media URLs must use HTTPS');
-        abort_unless(Worker::whereKey($id)->exists(), 404, 'Worker not found');
+        abort_unless(Worker::whereKey($id)->exists(), 404, 'العاملة غير موجودة.');
         $media = $mediaId ? WorkerMedia::where('worker_id', $id)->whereKey($mediaId)->first() : new WorkerMedia(['id' => Str::uuid()->toString(), 'worker_id' => $id, 'created_at' => now()]);
-        abort_unless($media, 404, 'Media not found');
+        abort_unless($media, 404, 'الوسيط غير موجود.');
         $media->fill(array_merge($input, ['worker_id' => $id])); $media->save();
         $this->audit($request, 'worker.media_saved', 'WorkerMedia', $media->id, null, $media->toArray());
         return response()->json(['data' => $media], $mediaId ? 200 : 201);
@@ -217,7 +217,7 @@ class ApiController extends Controller
 
     public function deleteMedia(Request $request, string $id, string $mediaId): JsonResponse
     {
-        $media = WorkerMedia::where('worker_id', $id)->whereKey($mediaId)->first(); abort_unless($media, 404, 'Media not found'); $media->delete();
+        $media = WorkerMedia::where('worker_id', $id)->whereKey($mediaId)->first(); abort_unless($media, 404, 'الوسيط غير موجود.'); $media->delete();
         $this->audit($request, 'worker.media_deleted', 'WorkerMedia', $mediaId, null, null); return response()->json(null, 204);
     }
 
@@ -267,7 +267,7 @@ class ApiController extends Controller
 
     private function statusMutation(Request $request, string $id, string $status, string $action): JsonResponse
     {
-        $worker = Worker::find($id); abort_unless($worker, 404, 'Worker not found'); $before = $worker->toArray();
+        $worker = Worker::find($id); abort_unless($worker, 404, 'العاملة غير موجودة.'); $before = $worker->toArray();
         $worker->update(['publication_status' => $status, 'published_at' => $status === 'PUBLISHED' ? now() : $worker->published_at, 'archived_at' => $status === 'ARCHIVED' ? now() : null]);
         $this->audit($request, $action, 'Worker', $id, $before, $worker->toArray()); return response()->json(['data' => $this->adminWorkerDto($worker->fresh()->load(['nationality', 'skills', 'media']))]);
     }
@@ -275,7 +275,7 @@ class ApiController extends Controller
     private function saveTaxonomy(Request $request, string $modelClass, ?string $id, string $kind): JsonResponse
     {
         $request->merge(['name_en' => $request->input('name_en', $request->input('nameEn')), 'name_ar' => $request->input('name_ar', $request->input('nameAr')), 'is_active' => $request->input('is_active', $request->input('isActive')), 'sort_order' => $request->input('sort_order', $request->input('sortOrder'))]); $input = $request->validate(['name_en' => ['required', 'string', 'max:120'], 'name_ar' => ['required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:140'], 'is_active' => ['boolean'], 'sort_order' => ['nullable', 'integer', 'min:0', 'max:100000']]);
-        $model = $id ? $modelClass::find($id) : new $modelClass(['id' => Str::uuid()->toString()]); abort_if($id && !$model, 404, ucfirst($kind) . ' not found'); $model->fill(array_merge($input, ['slug' => $input['slug'] ?? Str::slug($input['name_en']), 'sort_order' => $input['sort_order'] ?? 0])); $model->save();
+        $model = $id ? $modelClass::find($id) : new $modelClass(['id' => Str::uuid()->toString()]); abort_if($id && !$model, 404, ($kind === 'nationality' ? 'الجنسية غير موجودة.' : 'المهارة غير موجودة.')); $model->fill(array_merge($input, ['slug' => $input['slug'] ?? Str::slug($input['name_en']), 'sort_order' => $input['sort_order'] ?? 0])); $model->save();
         $this->audit($request, "{$kind}." . ($id ? 'updated' : 'created'), ucfirst($kind), $model->id, null, $model->toArray()); return response()->json(['data' => $this->taxonomyDto($model)], $id ? 200 : 201);
     }
 

@@ -11,7 +11,7 @@ class RequireRole
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $admin = $request->attributes->get('admin');
-        if (!$admin || !in_array($admin->role, $roles, true)) return response()->json(['message' => 'Insufficient role'], 403);
+        if (!$admin || !in_array($admin->role, $roles, true)) return response()->json(['message' => 'لا تملك صلاحية تنفيذ هذا الإجراء.'], 403);
         return $next($request);
     }
 }

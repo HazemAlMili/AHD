@@ -136,7 +136,7 @@ class ApiParityTest extends TestCase
         Worker::create(['id' => 'existing-worker', 'public_code' => 'AHD-8888', 'display_name' => 'Existing', 'slug' => 'existing-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'DRAFT', 'availability_status' => 'AVAILABLE']);
         $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->postJson('/api/v1/admin/workers', [
             'publicCode' => 'AHD-8888', 'displayName' => 'Duplicate', 'nationalityId' => $this->nationality->id, 'skillIds' => [], 'languages' => [], 'sortOrder' => 0,
-        ])->assertStatus(422)->assertJsonPath('errors.public_code.0', 'The public code has already been taken.');
+        ])->assertStatus(422)->assertJsonPath('errors.public_code.0', 'قيمة الرمز العام محجوزة مسبقاً.');
         $this->assertDatabaseCount('workers', 1);
     }
 

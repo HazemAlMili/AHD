@@ -122,4 +122,21 @@ class ApiParityTest extends TestCase
         $this->assertDatabaseCount('workers', 1);
     }
 
+    public function test_typed_nationality_creates_and_reuses_taxonomy(): void
+    {
+        $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();
+        $token = $login->getCookie('ahd_admin_session', false)->getValue();
+        $request = fn (array $body) => $this->withCredentials()->withUnencryptedCookie('ahd_admin_session', $token)->postJson('/api/v1/admin/workers', $body);
+        $base = ['displayName' => 'Typed Nationality Worker', 'skillIds' => [], 'languages' => [], 'sortOrder' => 0];
+
+        $first = $request($base + ['publicCode' => 'AHD-6101', 'nationalityName' => 'نيبالية اختبار'])->assertCreated()->json('data');
+        $second = $request($base + ['publicCode' => 'AHD-6102', 'displayName' => 'Typed Nationality Worker Two', 'nationalityName' => 'نيبالية اختبار'])->assertCreated()->json('data');
+
+        $this->assertSame($first['nationality_id'], $second['nationality_id']);
+        $this->assertDatabaseCount('nationalities', 2);
+        $this->assertDatabaseHas('nationalities', ['name_ar' => 'نيبالية اختبار', 'name_en' => 'نيبالية اختبار', 'is_active' => 1]);
+        $request($base + ['publicCode' => 'AHD-6103'])->assertStatus(422)->assertJsonStructure(['errors' => ['nationality_name']]);
+    }
+
+
 }

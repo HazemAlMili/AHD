@@ -25,6 +25,11 @@ export type AdminWorker = {
   skill_ids: string[]; media: Array<{ id: string; url: string; altTextAr: string | null; visibility: string; isPrimary: boolean }>;
 };
 export type TaxonomyItem = { id: string; nameAr: string; nameEn: string; slug: string; isActive: boolean; sortOrder: number };
+export type AdminWorkerInput = {
+  publicCode?: string; displayName: string; nationalityName: string; currentCity: string | null;
+  yearsExperience: number | null; saudiExperienceYears: number | null; publicSummaryAr: string | null;
+  languages: string[]; skillIds: string[]; isFeatured: boolean; sortOrder: number;
+};
 
 type ApiEnvelope<T> = { data: T };
 const apiBase = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/$/, "");
@@ -66,8 +71,8 @@ export const adminApi = {
   logout: () => apiFetch<null>("/admin/auth/logout", { method: "POST" }),
   session: () => apiFetch<{ id: string; email: string; displayName: string; role: string }>("/admin/auth/session"),
   workers: () => apiFetch<AdminWorker[]>("/admin/workers"),
-  createWorker: (input: Record<string, unknown>) => apiFetch<Record<string, unknown>>("/admin/workers", { method: "POST", body: JSON.stringify(input) }),
-  updateWorker: (id: string, input: Record<string, unknown>) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  createWorker: (input: AdminWorkerInput) => apiFetch<AdminWorker>("/admin/workers", { method: "POST", body: JSON.stringify(input) }),
+  updateWorker: (id: string, input: AdminWorkerInput) => apiFetch<AdminWorker>(`/admin/workers/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   publish: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/publish`, { method: "POST" }),
   unpublish: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/unpublish`, { method: "POST" }),
   archive: (id: string) => apiFetch<Record<string, unknown>>(`/admin/workers/${id}/archive`, { method: "POST" }),

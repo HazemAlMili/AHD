@@ -119,6 +119,7 @@ class ApiController extends Controller
     {
         $input = $this->workerInput($request);
         $worker = DB::transaction(function () use ($input) {
+            $input = $this->resolveNationality($input);
             $skills = $input['skill_ids'] ?? [];
             unset($input['skill_ids']);
             $worker = Worker::create(array_merge($input, ['id' => Str::uuid()->toString()]));
@@ -134,6 +135,7 @@ class ApiController extends Controller
         $worker = Worker::find($id); abort_unless($worker, 404, 'Worker not found');
         $before = $worker->toArray();
         $input = $this->workerInput($request, true);
+        $input = $this->resolveNationality($input);
         $skills = array_key_exists('skill_ids', $input) ? $input['skill_ids'] : null;
         unset($input['skill_ids']);
         DB::transaction(function () use ($worker, $input, $skills) { $worker->update($input); if ($skills !== null) $worker->skills()->sync($skills); });
@@ -221,13 +223,45 @@ class ApiController extends Controller
 
     private function workerInput(Request $request, bool $partial = false): array
     {
-        $aliases = ['publicCode' => 'public_code', 'displayName' => 'display_name', 'nationalityId' => 'nationality_id', 'currentCity' => 'current_city', 'yearsExperience' => 'years_experience', 'saudiExperienceYears' => 'saudi_experience_years', 'publicSummaryEn' => 'public_summary_en', 'publicSummaryAr' => 'public_summary_ar', 'internalNotes' => 'internal_notes', 'availabilityStatus' => 'availability_status', 'publicationStatus' => 'publication_status', 'isFeatured' => 'is_featured', 'sortOrder' => 'sort_order', 'skillIds' => 'skill_ids'];
+        $aliases = ['publicCode' => 'public_code', 'displayName' => 'display_name', 'nationalityId' => 'nationality_id', 'nationalityName' => 'nationality_name', 'currentCity' => 'current_city', 'yearsExperience' => 'years_experience', 'saudiExperienceYears' => 'saudi_experience_years', 'publicSummaryEn' => 'public_summary_en', 'publicSummaryAr' => 'public_summary_ar', 'internalNotes' => 'internal_notes', 'availabilityStatus' => 'availability_status', 'publicationStatus' => 'publication_status', 'isFeatured' => 'is_featured', 'sortOrder' => 'sort_order', 'skillIds' => 'skill_ids'];
         foreach ($aliases as $camel => $snake) if ($request->has($camel) && !$request->has($snake)) $request->merge([$snake => $request->input($camel)]);
         $publicCodeRule = Rule::unique('workers', 'public_code');
         if ($partial && is_string($routeId = $request->route('id'))) $publicCodeRule->ignore($routeId);
-        $rules = ['public_code' => ['nullable', 'regex:/^AHD-[0-9]{4,}$/i', $publicCodeRule], 'display_name' => [$partial ? 'sometimes' : 'required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:160'], 'nationality_id' => [$partial ? 'sometimes' : 'required', 'exists:nationalities,id'], 'age' => ['nullable', 'integer', 'min:18', 'max:100'], 'current_city' => ['nullable', 'string', 'max:120'], 'years_experience' => ['nullable', 'integer', 'min:0', 'max:80'], 'saudi_experience_years' => ['nullable', 'integer', 'min:0', 'max:80'], 'public_summary_en' => ['nullable', 'string', 'max:3000'], 'public_summary_ar' => ['nullable', 'string', 'max:3000'], 'languages' => ['nullable', 'array', 'max:10'], 'languages.*' => ['string', 'max:80'], 'internal_notes' => ['nullable', 'string', 'max:5000'], 'availability_status' => ['nullable', 'in:AVAILABLE,ON_HOLD,RESERVED,TRANSFER_IN_PROGRESS,TRANSFERRED,UNAVAILABLE'], 'publication_status' => ['nullable', 'in:DRAFT,PUBLISHED,ARCHIVED'], 'is_featured' => ['boolean'], 'sort_order' => ['integer', 'min:0', 'max:100000'], 'skill_ids' => ['nullable', 'array', 'max:50'], 'skill_ids.*' => ['exists:skills,id']];
+        $rules = ['public_code' => ['nullable', 'regex:/^AHD-[0-9]{4,}$/i', $publicCodeRule], 'display_name' => [$partial ? 'sometimes' : 'required', 'string', 'max:120'], 'slug' => ['nullable', 'string', 'max:160'], 'nationality_id' => [$partial ? 'sometimes' : 'required_without:nationality_name', 'nullable', 'exists:nationalities,id'], 'nationality_name' => [$partial ? 'sometimes' : 'required_without:nationality_id', 'nullable', 'string', 'max:120'], 'age' => ['nullable', 'integer', 'min:18', 'max:100'], 'current_city' => ['nullable', 'string', 'max:120'], 'years_experience' => ['nullable', 'integer', 'min:0', 'max:80'], 'saudi_experience_years' => ['nullable', 'integer', 'min:0', 'max:80'], 'public_summary_en' => ['nullable', 'string', 'max:3000'], 'public_summary_ar' => ['nullable', 'string', 'max:3000'], 'languages' => ['nullable', 'array', 'max:10'], 'languages.*' => ['string', 'max:80'], 'internal_notes' => ['nullable', 'string', 'max:5000'], 'availability_status' => ['nullable', 'in:AVAILABLE,ON_HOLD,RESERVED,TRANSFER_IN_PROGRESS,TRANSFERRED,UNAVAILABLE'], 'publication_status' => ['nullable', 'in:DRAFT,PUBLISHED,ARCHIVED'], 'is_featured' => ['boolean'], 'sort_order' => ['integer', 'min:0', 'max:100000'], 'skill_ids' => ['nullable', 'array', 'max:50'], 'skill_ids.*' => ['exists:skills,id']];
         $input = $request->validate($rules);
         if (!$partial) { $input['public_code'] ??= 'AHD-' . random_int(1000, 9999); $input['slug'] ??= Str::slug($input['display_name']) . '-' . Str::lower(Str::random(6)); $input['languages'] ??= []; }
+        return $input;
+    }
+
+    private function resolveNationality(array $input): array
+    {
+        if (!array_key_exists('nationality_name', $input)) return $input;
+
+        $name = trim((string) $input['nationality_name']);
+        unset($input['nationality_name']);
+        if ($name === '') return $input;
+
+        $nationality = Nationality::query()
+            ->where('name_ar', $name)
+            ->orWhere('name_en', $name)
+            ->first();
+
+        if (!$nationality) {
+            $baseSlug = Str::slug($name) ?: 'nationality';
+            $slug = $baseSlug;
+            $suffix = 2;
+            while (Nationality::where('slug', $slug)->exists()) $slug = $baseSlug . '-' . $suffix++;
+            $nationality = Nationality::create([
+                'id' => Str::uuid()->toString(),
+                'name_ar' => $name,
+                'name_en' => $name,
+                'slug' => $slug,
+                'is_active' => true,
+                'sort_order' => 0,
+            ]);
+        }
+
+        $input['nationality_id'] = $nationality->id;
         return $input;
     }
 

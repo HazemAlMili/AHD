@@ -54,7 +54,7 @@ All paths below require the session cookie. Role middleware enforces the approve
 
 ## Worker Input Shape
 
-Worker mutations accept the existing frontend field contract: `publicCode`, `displayName`, `slug`, `nationalityId`, `age`, `currentCity`, `yearsExperience`, `saudiExperienceYears`, `publicSummaryEn`, `publicSummaryAr`, `languages`, `internalNotes`, `availabilityStatus`, `publicationStatus`, `isFeatured`, `sortOrder`, and `skillIds`. The Laravel boundary also accepts the persisted snake_case names used by the admin table.
+Worker mutations accept the existing frontend field contract: `publicCode`, `displayName`, `slug`, `nationalityName`, `nationalityId`, `age`, `currentCity`, `yearsExperience`, `saudiExperienceYears`, `publicSummaryEn`, `publicSummaryAr`, `languages`, `internalNotes`, `availabilityStatus`, `publicationStatus`, `isFeatured`, `sortOrder`, and `skillIds`. The admin UI uses `nationalityName` as free text; Laravel creates or reuses the matching nationality taxonomy record and stores its ID. `nationalityId` remains supported for compatibility and direct API clients. The Laravel boundary also accepts the persisted snake_case names used by the admin table.
 
 ## Media Rules
 

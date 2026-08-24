@@ -26,7 +26,7 @@ export type AdminWorker = {
 };
 export type TaxonomyItem = { id: string; nameAr: string; nameEn: string; slug: string; isActive: boolean; sortOrder: number };
 export type AdminWorkerInput = {
-  publicCode?: string; displayName: string; nationalityId: string; nationalityName?: string; currentCity: string | null;
+  publicCode?: string; displayName: string; nationalityId: string; nationalityName?: string; age?: number | null; currentCity: string | null;
   yearsExperience: number | null; saudiExperienceYears: number | null; publicSummaryAr: string | null;
   languages: string[]; skillIds: string[]; isFeatured: boolean; sortOrder: number;
 };

@@ -24,7 +24,7 @@ Use Laravel Filesystem disks. Shared-hosting local/public storage must use contr
 
 ## Naming and Compatibility
 
-Laravel persistence fields remain snake_case; API payloads use the frontend contract such as `displayName`, `nationalityName`, `nationalityId`, `skillIds`, `contentAr`, and `isActive`. The admin worker form accepts nationality as typed text, while the Laravel boundary resolves it to the normalized `nationality_id` relation; direct `nationalityId` input remains compatible. Normalize aliases at the request boundary and use explicit status values without inventing commercial worker fields not present in the active schema.
+Laravel persistence fields remain snake_case; API payloads use the frontend contract such as `displayName`, `nationalityName`, `nationalityId`, `skillIds`, `contentAr`, and `isActive`. The admin worker form selects the worker's nationality from the existing taxonomy records, while the Laravel boundary still accepts typed `nationalityName` for compatibility and resolves it to the normalized `nationality_id` relation; direct `nationalityId` input remains compatible. Normalize aliases at the request boundary and use explicit status values without inventing commercial worker fields not present in the active schema.
 
 ## Scope and Review
 

@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/.replit-artifact/**", "**/attached_assets/**", "artifacts/mockup-sandbox/**", "laravel-api/**", ".agents/**"],
+    ignores: ["**/dist/**", "**/node_modules/**", "**/.replit-artifact/**", "**/attached_assets/**", "artifacts/mockup-sandbox/**", "laravel-api/**", ".agents/**", ".local/**"],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

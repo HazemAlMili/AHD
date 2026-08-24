@@ -51,7 +51,9 @@ The website does not need an internal CRM to complete this loop.
 - Laravel/MySQL architecture pivot: **implemented and verified against disposable MySQL**; the React/Vite UI remains unchanged.
 - Backend parity: **verified** for health/readiness, auth/session/RBAC, worker/taxonomy/content/settings/media operations, transactions, public DTO privacy, and both WhatsApp journeys.
 - Documentation reconciliation: **completed for the Laravel/MySQL pivot and Docker-local development environment**.
-- Production readiness: **REPOSITORY READY WITH EXTERNAL HOSTING CHECKS**; Docker-local development is verified through the primary same-origin Compose URL.
+- Homepage consolidation and polish: **implemented** — canonical `/` (with `/home` and `/help` redirecting to it), embedded two-step matching inside one `#matching` section with inline step transitions, API-backed worker carousel, simplified logo-only public navbar, and configurable FAQ. Covered by lint/typecheck/unit/build gates and code review; the recorded browser golden slices predate the consolidated Homepage, so re-running them is the standing repo-side follow-up.
+- Repository reconciliation: **completed** — stale PostgreSQL root npm aliases removed, unused frontend workspace dependency removed, Laravel queue scaffold dev command removed, admin media-limit copy corrected, footer FAQ navigation targets the real `#faq` section, and the approved optional `age` attribute is exposed in the Admin editor.
+- Production readiness: **REPOSITORY READY WITH EXTERNAL HOSTING CHECKS**; Docker-local development was previously verified through the primary same-origin Compose URL during local integration QA.
 - Production deployment: **not executed** because no authorized shared-hosting/domain/S3 target or deployment credentials are available.
 - Production launch: pending authorized shared-hosting PHP/MySQL/HTTPS/storage verification.
 
@@ -109,7 +111,8 @@ Admin owns catalogue mutations. Public users consume only published, approved da
 Admin is the party that adds and manages domestic workers. Current capabilities include:
 
 - Create, read, and update workers.
-- Assign nationality/country and skills.
+- Assign nationality from the taxonomy list (the Laravel boundary also accepts typed `nationalityName` for compatibility) and assign multiple skills.
+- Set operational attributes including the optional `age` value validated by Laravel (18–100).
 - Manage URL media and the S3-compatible upload flow.
 - Change availability.
 - Save drafts, publish, unpublish, and archive.
@@ -135,7 +138,7 @@ Public users must not add/edit workers, publish/unpublish/archive, mutate taxono
 
 ## 9. Worker Catalogue
 
-Public catalogue data is database-backed and explicitly mapped. Public output includes approved display data such as public code, display name, nationality, city, experience, languages, skills, availability, summary, featured/order state, and public media.
+Public catalogue data is database-backed and explicitly mapped. Public output includes approved display data such as public code, display name, nationality, age, city, experience, languages, skills, availability, summary, featured/order state, and public media.
 
 Never expose internal notes, internal IDs, admin metadata, private/sensitive media, secrets, or operational audit data in public DTOs.
 
@@ -295,6 +298,7 @@ If canonical docs disagree with the verified implementation, investigate before 
 | Binary S3-compatible upload | **EXTERNAL CHECK** | Optional S3 path exists; real credentials/upload/public retrieval require authorized hosting. |
 | Specific-worker form/builders | **VERIFIED** | React browser preview and shared validation/message/URL checks passed. |
 | Matching flow/builders | **VERIFIED** | Browser Step 1 → Step 2 → WhatsApp preview passed. |
+| Consolidated Homepage (embedded matching, worker carousel, `/home` + `/help` redirects, simplified navbar) | **CODE VERIFIED** | Source inspection plus lint/typecheck/unit/build gates after the homepage consolidation series; the recorded browser golden slices predate this layout and should be re-run before staging sign-off. |
 | Admin React integration | **VERIFIED** | Same-site localhost cookie topology loaded dashboard and worker rows. |
 | Prototype visual preservation | **VERIFIED** | Existing React UI preserved; production build passes. |
 
@@ -319,14 +323,23 @@ Latest QA result: **AHD FULL INTEGRATION PASS WITH NON-BLOCKING ITEMS**. The rea
 Verified QA evidence:
 
 - Fresh and idempotent disposable MySQL migration/reset passed; final reset left one bootstrap admin and zero synthetic workers, taxonomies, media, settings, content, sessions, audits, or pivots.
-- Laravel feature suite: **6 tests / 57 assertions** passed, including the targeted optional-sort-order, relative-presign, duplicate-code, auth, CRUD, content/settings, media ownership, privacy, and audit coverage.
+- Laravel feature suite passed with its current **9 test methods**, covering the targeted optional-sort-order, relative-presign, duplicate-code, auth, CRUD, content/settings, media ownership/limits, privacy, audit, and typed-nationality behavior against disposable MySQL.
 - Golden browser admin slice passed: login → taxonomy create → worker create/update → media upload → publish → public catalogue/profile propagation.
 - Public catalogue/profile/filtering and both Arabic WhatsApp preview journeys passed without sending a message or persisting customer/lead data.
-- React shared unit suite: **7/7** passed; TypeScript typecheck and production build passed.
-- Docker route listing, health/readiness, same-origin Nginx routing, local public media retrieval, and app/frontend/mysql health checks passed.
+- React shared unit suite (**7 tests**) passes; TypeScript typecheck and production build pass, re-run after the dependency cleanup described below.
+- Docker route listing, health/readiness, same-origin Nginx routing, local public media retrieval, and app/frontend/mysql health checks passed during local integration QA.
 - Repository lint passes with seven known non-fatal Fast Refresh warnings; Vite retains the existing tooltip source-map and chunk-size warnings.
 - A bounded API timeout now converts a stopped-Laravel browser state into a controlled Arabic connection error instead of an indefinite skeleton.
 - Existing React visual/RTL behavior was preserved; no UI redesign was introduced.
+
+Reconciliation cleanups recorded (all CODE VERIFIED with static gates re-run):
+
+- Root `db:migrate`/`db:status` npm aliases that invoked the superseded PostgreSQL runner were removed; canonical database commands are `docker compose exec app php artisan migrate` / `migrate:status`. The historical Express/PostgreSQL code under `scripts`, `lib/db`, and `db/migrations` remains reference-only and is no longer reachable from workspace scripts.
+- The unused `@workspace/api-client-react` dependency declaration was removed from the frontend package (no source imports); the historical package itself is retained for reference.
+- The Laravel scaffold `queue:listen` segment was removed from `composer.json` dev scripts; AHD has no queues or Redis (`QUEUE_CONNECTION=sync`).
+- Admin editor copy now states the backend-authoritative MP4 limit of 50 MB (images 8 MB), matching `ApiController` validation.
+- The public footer FAQ control navigates home and smooth-scrolls to the real `#faq` section via a deterministic pending-scroll handoff (no timing hacks); Homepage sections expose stable anchors `#matching`, `#workers`, and `#faq`.
+- The Admin worker editor exposes the approved optional `age` attribute (Laravel validation: nullable integer 18–100) that was previously API-only despite being documented in PRODUCT/API as implemented domain data.
 
 ## 22. Docker-Local Development
 
@@ -405,7 +418,7 @@ Future features are not permanently forbidden. CRM, queues, Redis, dedicated sea
 
 ## 27. Current Next Action
 
-**NEXT ACTION:** Proceed to **SHARED-HOSTING STAGING DEPLOYMENT** with an authorized domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope.
+**NEXT ACTION:** Proceed to **SHARED-HOSTING STAGING DEPLOYMENT** with an authorized domain, PHP runtime, MySQL database, persistent media storage, and secret-management configuration; then run the real-domain smoke suite. Do not create new feature work for the already-passing MVP scope. The standing repository-side follow-up is to re-run the browser golden slices against the consolidated Homepage before staging sign-off.
 
 ## 28. Architecture Pivot State
 

@@ -86,7 +86,7 @@ class ApiController extends Controller
         }
         if ($nationality = $request->query('nationality')) $query->whereHas('nationality', fn ($q) => $q->where('slug', $nationality));
         if ($availability = $request->query('availability')) $query->where('availability_status', $availability);
-        if ($skill = $request->query('skill')) $query->whereHas('skills', fn ($q) => $q->where('skills.id', $skill)->orWhere('skills.slug', $skill));
+        if ($skill = $request->query('skill')) $query->whereHas('skills', fn ($q) => $q->where('skills.is_active', true)->where(fn ($skillQuery) => $skillQuery->where('skills.id', $skill)->orWhere('skills.slug', $skill)));
         return response()->json(['data' => $query->orderByDesc('is_featured')->orderBy('sort_order')->orderBy('display_name')->get()->map(fn (Worker $worker) => $this->publicWorkerDto($worker))->values()]);
     }
 
@@ -281,7 +281,7 @@ class ApiController extends Controller
 
     private function publicWorkerDto(Worker $worker): array
     {
-        return ['publicCode' => $worker->public_code, 'displayName' => $worker->display_name, 'slug' => $worker->slug, 'nationality' => ['slug' => $worker->nationality->slug, 'nameAr' => $worker->nationality->name_ar, 'nameEn' => $worker->nationality->name_en], 'age' => $worker->age, 'city' => $worker->current_city, 'yearsExperience' => $worker->years_experience, 'saudiExperienceYears' => $worker->saudi_experience_years, 'summary' => $worker->public_summary_ar ?: ($worker->public_summary_en ?: ''), 'languages' => $worker->languages ?? [], 'skills' => $worker->skills->map(fn (Skill $skill) => $skill->name_ar ?: $skill->name_en)->values()->all(), 'availabilityStatus' => $worker->availability_status, 'isFeatured' => $worker->is_featured, 'media' => $worker->media->where('visibility', 'PUBLIC')->map(fn (WorkerMedia $media) => ['url' => $media->url, 'altTextAr' => $media->alt_text_ar, 'isPrimary' => $media->is_primary])->values()->all()];
+        return ['publicCode' => $worker->public_code, 'displayName' => $worker->display_name, 'slug' => $worker->slug, 'nationality' => ['slug' => $worker->nationality->slug, 'nameAr' => $worker->nationality->name_ar, 'nameEn' => $worker->nationality->name_en], 'age' => $worker->age, 'city' => $worker->current_city, 'yearsExperience' => $worker->years_experience, 'saudiExperienceYears' => $worker->saudi_experience_years, 'summary' => $worker->public_summary_ar ?: ($worker->public_summary_en ?: ''), 'languages' => $worker->languages ?? [], 'skills' => $worker->skills->where('is_active', true)->map(fn (Skill $skill) => $skill->name_ar ?: $skill->name_en)->values()->all(), 'availabilityStatus' => $worker->availability_status, 'isFeatured' => $worker->is_featured, 'media' => $worker->media->where('visibility', 'PUBLIC')->map(fn (WorkerMedia $media) => ['url' => $media->url, 'altTextAr' => $media->alt_text_ar, 'isPrimary' => $media->is_primary])->values()->all()];
     }
 
     private function adminWorkerDto(Worker $worker): array

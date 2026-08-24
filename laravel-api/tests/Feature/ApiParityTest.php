@@ -95,6 +95,24 @@ class ApiParityTest extends TestCase
         $this->getJson('/api/v1/workers/draft')->assertNotFound();
     }
 
+    public function test_public_filters_only_match_active_skills_and_hide_inactive_skill_labels(): void
+    {
+        $worker = Worker::create(['id' => 'inactive-skill-worker', 'public_code' => 'AHD-9900', 'display_name' => 'Inactive Skill Worker', 'slug' => 'inactive-skill-worker', 'nationality_id' => $this->nationality->id, 'languages' => [], 'publication_status' => 'PUBLISHED', 'availability_status' => 'AVAILABLE']);
+        $worker->skills()->attach($this->skill->id);
+
+        $this->getJson('/api/v1/workers')->assertOk()->assertJsonPath('data.0.skills', ['طبخ']);
+        $this->getJson('/api/v1/workers?skill=cooking')->assertOk()->assertJsonCount(1, 'data');
+
+        $this->skill->update(['is_active' => false]);
+        $this->getJson('/api/v1/skills')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/workers?skill=cooking')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/workers')->assertOk()->assertJsonPath('data.0.skills', []);
+
+        $this->skill->update(['is_active' => true]);
+        $this->getJson('/api/v1/skills')->assertOk()->assertJsonPath('data.0.slug', 'cooking');
+        $this->getJson('/api/v1/workers?skill=cooking')->assertOk()->assertJsonCount(1, 'data');
+    }
+
     public function test_admin_taxonomy_defaults_sort_order_and_local_presign_is_relative(): void
     {
         $login = $this->postJson('/api/v1/admin/auth/login', ['email' => 'admin@test.local', 'password' => 'local-test-password'])->assertOk();

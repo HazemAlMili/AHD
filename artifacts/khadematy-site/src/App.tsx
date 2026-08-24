@@ -86,7 +86,7 @@ function Landing({ navigate }: { navigate: Navigate }) {
   const [content, setContent] = useState<Record<string, unknown>>({});
   useEffect(() => { trackEvent("transfer_lp_viewed"); getContent<Record<string, unknown>>("transferLanding").then((block) => setContent(block.contentAr || {})).catch(() => undefined); }, []);
   const text = (key: string, fallback: string) => typeof content[key] === "string" && String(content[key]).trim() ? String(content[key]) : fallback;
-  return <div dir="rtl" className="min-h-[100dvh] overflow-hidden bg-[#164a43] text-[#f7f3e9]">
+  return <div dir="rtl" className="relative min-h-[100dvh] overflow-x-clip bg-[#164a43] text-[#f7f3e9]">
     <div className="pointer-events-none absolute inset-0"><div className="absolute -left-24 top-12 h-72 w-72 rounded-full border border-[#6d9183]/30" /><div className="absolute -left-10 top-28 h-52 w-52 rounded-full border border-[#6d9183]/25" /><div className="absolute bottom-16 right-[-90px] h-72 w-72 rounded-full border border-[#6d9183]/20" /></div>
     <Header path="/" navigate={navigate} dark />
     <main className="relative mx-auto max-w-[1240px] px-5 pb-14 pt-10 md:px-10 md:pb-24 md:pt-20">
